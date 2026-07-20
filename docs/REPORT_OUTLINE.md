@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1 language/grammar evidence is prepared; implementation/result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1 language/grammar and M2 AST/build evidence are prepared; later compiler-phase and end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -73,13 +73,15 @@ Evidence needed: implemented `ARCHITECTURE.md`, exact filenames/functions, final
 
 ## 7. Abstract Syntax Tree
 
-- Node-kind diagram/table
+- Implemented node-kind diagram/table from `src/ast/ast.h`
+- one tagged union, explicit expression/control children, and dynamic source-ordered lists for programs/blocks
 - optional initializer child on declaration nodes and block nodes as statements/scopes
-- Tagged structure and child/list representation
-- constructor/printer/destructor design
-- source locations and memory ownership
-- sample printed AST
+- `ast_new_*`, `ast_add_statement`, `ast_print`, and `ast_destroy` APIs
+- line-only `SourceLocation`; copied-name and child-transfer ownership rules
+- deterministic official-sample-shaped printed AST in `tests/expected/ast_unit.stdout`
 - interaction with semantics and TAC
+
+M2 evidence: clean C11 build, 15 direct AST unit tests, generated Bison token-header test, repeated-printer equality, and golden stdout comparison. Recursive destruction ran without a crash; do not claim leak freedom without a real memory-analysis run.
 
 ## 8. Semantic Analysis
 

@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: Foundation notes. Replace proposed details with exact implemented file/function names after each milestone. Every member must understand the complete project, not only their attributed commits.
+Status: M2 AST/build notes now name the implemented interfaces. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -23,6 +23,38 @@ Tokens are a flat sequence such as `IDENTIFIER ASSIGN INTEGER PLUS ...`. The AST
 ### Why attach line numbers to AST nodes?
 
 Semantic errors are discovered after parsing. The analyzer still needs the original source location to report where an undeclared use, bad assignment, or invalid operator occurred.
+
+### How is the M2 AST represented?
+
+`src/ast/ast.h` defines one `AstNodeKind` enum and one `AstNode` tagged union. The tag tells later visitors which union member is active. Simple literals store a value, named constructs own copied strings, expressions own child pointers, and program/block nodes own an `AstNodeList`.
+
+### How do statement lists work?
+
+`ast_new_program` and `ast_new_block` start with an empty list. `ast_add_statement` accepts only a program/block container and a statement-kind child. It grows the pointer array with `realloc` when needed and preserves insertion/source order. A count of zero represents an empty block; a block node may itself be appended as a statement for nesting.
+
+### What are the AST ownership rules?
+
+Every name passed as `const char *` is copied, so the AST never borrows a lexer buffer. A successful constructor owns its child nodes; if construction fails, the caller still owns them. A successful `ast_add_statement` transfers the statement to the container. `ast_destroy(NULL)` is safe and recursively frees lists, copied names, and every owned child.
+
+### How are initialized declarations represented?
+
+The declaration union member stores a `ValueType`, copied name, and `initializer` pointer. `NULL` means `int x;`; an expression pointer means a form such as `int x = 1;`. The constructor checks only structural validity. Type compatibility remains the future semantic analyzer's job.
+
+### How are `if` and `if-else` distinguished?
+
+Both use `AST_NODE_IF`. The condition and then-block are required; `else_block == NULL` means no else, while a block pointer means `if-else`. This avoids two nearly identical node layouts.
+
+### How does the AST printer work?
+
+`ast_print` in `src/ast/ast_print.c` recursively switches on the node tag, writes two spaces per depth, prints each node's line, and labels roles such as `Condition`, `Then`, `Else`, `Value`, `Left`, and `Right`. Statement list order is unchanged, and `<empty>` makes an empty block visible. No address or nondeterministic value is printed.
+
+### How does the M2 Makefile prepare Flex/Bison integration?
+
+`src/parser/parser.y` currently contains only the 32 `%token` declarations and a clearly labeled placeholder production. Bison writes `build/generated/parser.tab.h`; the token-interface C test includes that generated header. M3 will make Flex include the same header, and M4 will replace the placeholder production with the approved CFG and AST actions. Token numbers are not copied into a separate lexer enum.
+
+### What do the M2 tests prove and not prove?
+
+`tests/unit/test_ast.c` directly constructs every required AST shape, checks empty/multiple/nested lists, both declaration forms, assignment, unary/binary expressions, both `if` forms, `while`, print, invalid constructor arguments, repeated printer equality, and recursive destruction. `tests/run_tests.sh` compares output with a tracked golden. These tests do not prove parsing, semantic correctness, TAC, or absence of memory leaks; no leak detector was run.
 
 ### What does the symbol table store?
 

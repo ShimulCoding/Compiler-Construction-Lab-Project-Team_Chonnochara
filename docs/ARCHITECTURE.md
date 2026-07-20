@@ -1,6 +1,16 @@
 # Compiler Architecture
 
-Status: **Proposed architecture; no compiler implementation exists yet.** Update this document to name actual files/functions as each milestone lands.
+Status: **M2 AST/build foundation implemented and tested; lexer, complete parser, symbol table, semantic analyzer, TAC generator, and driver remain unimplemented.**
+
+## Implemented M2 foundation
+
+- `src/common/source_location.h` defines the shared line-only `SourceLocation` value.
+- `src/common/value_type.h` defines the three source-language value types.
+- `src/ast/ast.h` exposes the node/operator tags, tagged `AstNode` union, `AstNodeList`, constructors, append operation, printer, and destructor.
+- `src/ast/ast.c` implements allocation, owned string copies, list growth, constructor validation, and recursive destruction.
+- `src/ast/ast_print.c` implements deterministic two-space-indented tree output with a line on every node.
+- `src/parser/parser.y` is deliberately only the M2 32-token interface. Bison generates `build/generated/parser.tab.h` for future Flex use; no complete parser is claimed.
+- `Makefile` builds the two M2 test executables, generates the token header, runs `tests/run_tests.sh`, and confines generated output to ignored `build/`.
 
 ## Required pipeline
 
@@ -110,15 +120,9 @@ The grammar should mirror the documented precedence layers rather than relying o
 
 ### AST (`src/ast/`)
 
-Recommended simple representation:
+The implemented representation uses one `AstNodeKind` tag and one `AstNode` union. Every node stores `SourceLocation`; program and block variants own dynamically grown `AstNodeList` arrays. The source-language `ValueType` contains only `int`, `float`, and `bool`; a future semantic error/unknown state must remain an analyzer-internal result rather than become a source type.
 
-- one `AstNodeKind` enum;
-- one tagged `AstNode` structure containing a source line and a union of kind-specific data;
-- explicit child pointers/lists for programs, blocks, and statements;
-- a `ValueType` enum shared carefully with semantics (`TYPE_INT`, `TYPE_FLOAT`, `TYPE_BOOL`, plus internal error/unknown states);
-- constructors, indentation printer, and recursive destructor.
-
-Core node kinds:
+Implemented node kinds:
 
 ```text
 Program, Block, Declaration, Assignment, Identifier,
@@ -126,7 +130,11 @@ IntLiteral, FloatLiteral, BoolLiteral,
 BinaryOp, UnaryOp, If, While, Print
 ```
 
-An `If` node can represent both forms with an optional else branch. A `Declaration` node owns its name/type and an optional initializer expression child. Parentheses and semicolons do not need AST nodes.
+One `AST_NODE_IF` represents both forms through an optional `else_block`. A declaration owns its copied name, type, and optional initializer expression. Assignment and print nodes own copied names; identifier-expression nodes own their own copied occurrence names. Parentheses and semicolons have no AST nodes.
+
+`ast_new_*` functions return `NULL` for invalid required arguments or allocation failure. A successful constructor takes ownership of child nodes; a failed constructor leaves child ownership with its caller. `ast_add_statement` accepts only program/block containers and statement-kind children, taking ownership only when append succeeds. `ast_destroy` accepts `NULL` and recursively frees lists, names, and children.
+
+`ast_print(FILE *, const AstNode *)` prints deterministic lines such as `Declaration(line=1, type=int, name=x)` and labeled `Condition`, `Then`, `Else`, `Body`, `Value`, `Left`, `Right`, and `Operand` edges. Empty program/block lists print `<empty>`. Parentheses are already represented by expression hierarchy and therefore do not print.
 
 ### Symbol table (`src/symbol_table/`)
 
@@ -220,14 +228,14 @@ Tests should verify diagnostic phase, line, essential wording, and exit status w
 
 ## Build and test flow
 
-The primary planned path is pinned Ubuntu 24.04 LTS on WSL2, with installation requiring separate user approval and exact observed tool versions recorded afterward. Native Windows remains unsupported until independently validated. The Makefile should provide at least:
+The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Git worktree while WSL compiles/tests the same checkout through `/mnt/e`; native Windows compilation remains unsupported. The implemented Makefile provides:
 
 ```text
-make          build generated parser/lexer sources and compiler
-make test     build and run the automated suite
-make clean    remove only generated build artifacts
+make          build the AST tests and Bison token-header validation executable
+make test     run the M2 automated tests and golden AST comparison
+make clean    remove only the generated build/ directory
 ```
 
-Generated dependencies should follow `parser.y -> parser header/C -> lexer C -> object files -> compiler`. A minimal `make test` target begins in M2 and grows with every module. The primary runner should be a quoted-path-safe POSIX shell script for the declared Linux target and must propagate failures to Make; normalize line endings where cross-platform checkouts affect comparisons.
+The current generated dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> token interface test`. M3 adds `parser.tab.h -> lexer C`; M4 completes `parser.y`, and later milestones add compiler objects/executable without duplicating token definitions. The quoted-path-safe POSIX runner propagates failures to Make and normalizes CRLF in the tracked golden before byte comparison.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.

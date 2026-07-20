@@ -1,6 +1,6 @@
 # Mandatory Language Contract
 
-Status: **M1 contract approved and recorded by the first Team Chonnochara commit containing this file. Compiler implementation has not started.**
+Status: **M1 contract approved and recorded. M2 implements only the AST/build foundation; lexer, full parser, semantic analysis, and TAC do not yet implement this complete contract.**
 
 Authority: `Compiler Construction Lab Project Manual.pdf`, with Section 5 controlling whenever another manual example is ambiguous. This document intentionally accepts the smallest language that satisfies the manual. `docs/GRAMMAR.md` is the formal syntax companion.
 

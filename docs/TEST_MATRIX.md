@@ -1,8 +1,8 @@
 # Test Matrix
 
-Last audited/contract-updated: 21 July 2026.
+Last implementation/test update: 21 July 2026.
 
-No compiler or test runner exists. Therefore every inherited case is either **Blocked** or merely **Partial coverage**; none has an actual compiler result. Do not change a status to Pass until the command and output were observed.
+The M2 AST/token unit runner exists, but no source-language compiler exists. Therefore every inherited language case remains **Blocked** or merely **Partial coverage**; none has an actual compiler result. Do not change a language-case status to Pass because an AST constructed directly in C passed.
 
 ## Inherited template cases
 
@@ -83,6 +83,26 @@ These checks validate the contract documents only; they are not compiler tests.
 | M1-V07 | System mutation check | No WSL/package installation; only the explicitly approved local M1 documentation commit | No installation command executed and no push performed | Pass |
 | M1-V08 | Markdown integrity | Balanced fences/tables, no trailing whitespace, UTF-8-readable content, final LF | 15 proposed Markdown files checked; zero structural issues | Pass (automated static) |
 | M1-V09 | Revised-form reachability | Standalone/empty nested blocks and both declaration forms derive; Section 5.5 still derives; normal EOF completes parsing | In-memory recognizer matched 12/12 expected cases: required forms accepted and unrelated forms rejected | Pass (static recognizer) |
+
+## M2 build and AST validation
+
+Environment: Ubuntu 24.04.4 LTS on WSL2; GCC 13.3.0, GNU Make 4.3, and Bison 3.8.2. Canonical files remained in the Windows checkout mounted through `/mnt/e`.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M2-V01 | Clean C11 build | AST/test sources compile with `-std=c11 -Wall -Wextra -Wpedantic`; Bison generates its header without conflicts/warnings | `make clean` then `make` exited 0 with no compiler or Bison warnings | Pass |
+| M2-V02 | Shared token interface | One Bison source declares 32 unique source tokens, no custom `END`, and its generated header compiles from C | Static count found 32/32 unique tokens and `build/token_interface_test` exited 0 | Pass |
+| M2-U01 | Empty block | Block list starts at zero statements and destroys safely | `test_empty_block` passed | Pass |
+| M2-U02 | Statement lists | Multiple statements retain insertion/source order | `test_multiple_statements` passed | Pass |
+| M2-U03 | Nested block | A block can be stored as a statement inside another block | `test_nested_block` passed | Pass |
+| M2-U04 | Declaration forms | Plain declaration has no initializer; initialized declaration owns one expression child | Both declaration tests passed | Pass |
+| M2-U05 | Assignment and expressions | Assignment owns its RHS; multiplication nests beneath addition; logical `!` owns one operand | Assignment, arithmetic-binary, and logical-unary tests passed | Pass |
+| M2-U06 | Control statements | One `If` supports absent/present else blocks; `While` owns condition/body; print owns its identifier text | `if` (both forms), `while`, and `print` tests passed | Pass |
+| M2-U07 | Constructor validation | Invalid type/required pointers/container-child combinations fail without taking caller ownership | Validation test passed | Pass |
+| M2-U08 | Printer determinism | Two prints of the official-sample-shaped tree are identical and match a tracked golden | In-memory comparison and `tests/expected/ast_unit.stdout` byte comparison passed | Pass |
+| M2-U09 | Recursive cleanup execution | A populated nested tree can be recursively destroyed without a crash | Cleanup execution test passed; no Valgrind/leak claim | Pass |
+| M2-V03 | Automated target | `make test` builds first, validates token header, runs AST tests, and returns 0 | 15/15 AST tests passed; runner printed two PASS summaries and exited 0 | Pass |
+| M2-V04 | Artifact hygiene/clean | Generated products stay ignored and `make clean` removes only `build/` | `/build/` is ignored; clean target exited 0 and was followed by a successful rebuild/test | Pass |
 
 ## Audit commands and results
 

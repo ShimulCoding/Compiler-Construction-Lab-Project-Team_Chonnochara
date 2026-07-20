@@ -51,6 +51,26 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **System changes:** None. Only read-only WSL status/list probes ran; no WSL installation/update, Ubuntu-shell, or package-install command was executed.
 - **Git result:** Recorded by the commit containing this entry with message `Shimul: Defined the mandatory language contract and formal grammar`, using Shimul's approved per-command identity. No push was performed.
 
+## 21 July 2026 — M2 C11 build and AST foundation
+
+- **Contributor/owner:** Nayem; reviewed and explicitly approved as the M2 owner.
+- **Task:** Establish only the initial C11/Make foundation, shared source locations/value types, Bison token-header boundary, complete mandatory AST representation, constructors, cleanup, printer, and focused tests.
+- **Files implemented:** `Makefile`; `src/common/source_location.h`; `src/common/value_type.h`; `src/ast/ast.h`; `src/ast/ast.c`; `src/ast/ast_print.c`; `src/parser/parser.y`; `tests/unit/test_ast.c`; `tests/unit/test_token_interface.c`; `tests/run_tests.sh`; and `tests/expected/ast_unit.stdout`.
+- **Supporting changes:** `/build/` ignore rule and concise updates to project state, architecture, decisions, testing, toolchain, report, presentation, and viva documents.
+- **Implemented:**
+  - a line-bearing `AstNodeKind` tagged union for every required program/statement/expression/literal shape;
+  - growable source-ordered statement lists supporting empty and nested blocks;
+  - optional declaration initializer children without semantic type checking;
+  - copied identifier ownership, failure-aware constructors/list append, and recursive destruction;
+  - deterministic indentation printing with line numbers and labeled child roles;
+  - one 32-token Bison source that generates the future Flex-shared header without implementing the complete parser;
+  - truthful `make`, `make test`, and `make clean` targets using ignored `build/` output.
+- **Why:** The parser, semantic analyzer, and TAC generator need one stable, understandable AST/lifetime contract before their own milestones can integrate safely.
+- **Technical decisions:** One `If` node uses an optional else block; parentheses/semicolons have no AST node; source locations store only the required line; successful constructors/append transfer child ownership, while failure does not; internal allocation/argument failures return `NULL`/`false` rather than emitting future compiler-phase diagnostics.
+- **Tests/commands:** WSL `make clean`, `make`, direct M2 executables, and `make test`; Windows token accounting, ignore checks, Git status/diff, and whitespace review.
+- **Result:** C11 compilation and Bison generation completed with no warnings. The generated-header test and 15 AST tests passed, including official-sample-shaped golden printer comparison and recursive cleanup execution. No leak detector was installed/run, so no memory-leak claim is made.
+- **Git handling:** Approved for one local Nayem-owned commit with message `Nayem: Established the C11 build and AST foundation`; pushing remains prohibited until separately approved.
+
 ## Entry template
 
 ### YYYY-MM-DD — Milestone title

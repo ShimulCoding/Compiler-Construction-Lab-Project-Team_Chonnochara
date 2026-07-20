@@ -4,14 +4,14 @@ Last updated: 21 July 2026 (Asia/Dhaka)
 
 ## Executive status
 
-- **Stage:** M1 language contract and formal grammar completed in the first Team Chonnochara commit owned by Shimul.
-- **Implementation:** Not started. None of the six mandatory compiler modules exists.
-- **Integration:** No compiler pipeline exists.
-- **Build:** Blocked because there is no `Makefile`, source tree, or installed/approved WSL2 Flex-Bison-GCC-Make environment.
-- **Tests:** Compiler tests are not runnable. M1 documentary/static validation passed 32-token and 23-nonterminal accounting, a 12-case grammar recognizer, zero-conflict canonical LR(1)/merged-LALR analysis, initializer semantic review, and Markdown integrity checks.
+- **Stage:** M2 C11/AST foundation is completed, validated, and approved as Nayem's milestone. M3 has not started.
+- **Implementation:** The source-location, shared value-type, AST construction/list/cleanup/printing, minimal Bison token interface, Makefile, and AST unit-test infrastructure exist. The lexer, complete parser, symbol table, semantic analyzer, TAC generator, and driver do not yet exist.
+- **Integration:** Bison generates the shared 32-token header and the AST is ready for later parser actions, semantic analysis, and TAC generation. No source-to-TAC compiler pipeline exists yet.
+- **Build:** `make`, `make test`, and `make clean` work under the verified Ubuntu 24.04 WSL2 environment. Generated files remain under ignored `build/`.
+- **Tests:** M2 clean compilation passed with C11 and `-Wall -Wextra -Wpedantic`; the generated token header test and 15 AST unit tests passed, including golden printer determinism and recursive cleanup execution. This is not a memory-leak claim because no leak detector was installed or run.
 - **Deadline:** 31 July 2026, no extensions. Target release freeze: 30 July 2026.
-- **Immediate next task:** Wait for user authorization before pushing or starting M2. Nayem's proposed M2 is the C/Make/AST foundation, but the separately approved toolchain gate must pass first.
-- **Next Intended Contributor:** **Nayem**.
+- **Immediate next task:** Preserve and verify the approved local M2 commit, then wait for explicit authorization before pushing or beginning M3.
+- **Next Intended Contributor:** **Dipro**.
 
 The initialization and M1 documents describe audited facts and the finalized technical contract. They do not prove compiler implementation or functional test completion.
 
@@ -41,6 +41,8 @@ Do not count inherited commits or this Codex-assisted audit as a team-member con
 | Invalid test sketches | Seven Markdown files | Instructor template |
 | Example sketches | One valid and one mixed-invalid Markdown file | Instructor template |
 | Persistent project memory | Audit plus approved M1 language/grammar/test/toolchain documents | First Team Chonnochara commit; owned by Shimul |
+| C11 build/test foundation | Makefile, ignored build tree, Bison-generated token header, and POSIX test runner | M2 completed; owned and reviewed by Nayem |
+| AST subsystem | Tagged node model, source lines, constructors, statement lists, recursive cleanup, printer, and unit tests | M2 completed; owned and reviewed by Nayem |
 
 The README explicitly identifies the baseline as a template with no compiler solution. Its tree diagram is visibly mojibaked in the current checkout and its generic build/run commands do not describe an implemented program.
 
@@ -48,30 +50,32 @@ The README explicitly identifies the baseline as a template with no compiler sol
 
 | Module | Status | Evidence / gap |
 | --- | --- | --- |
-| Flex lexer | Missing | No `.l`/`.lex` file, token interface, or lexer tests |
-| Bison parser | Missing | No `.y`/`.yy` file, formal CFG implementation, or recovery rules |
-| AST | Missing | No node definitions, constructors, ownership rules, or printer |
+| Flex lexer | Missing | The generated Bison token-header boundary exists, but there is no `.l`/`.lex` scanner or lexer test yet |
+| Bison parser | Token interface only | `src/parser/parser.y` declares the 32 tokens and generates the shared header; it deliberately contains no complete CFG, actions, or recovery rules |
+| AST | M2 completed | `src/ast/ast.h`, `ast.c`, and `ast_print.c` provide all mandatory AST shapes, source lines, ownership, cleanup, and deterministic printing |
 | Symbol table | Missing | No symbol entries or nested-scope operations |
 | Semantic analyzer | Missing | No AST walk, type rules, or diagnostics |
 | TAC generator | Missing | No temporaries, labels, instruction representation, or output |
 | Driver/integration | Missing | No CLI, phase sequencing, exit-code policy, or executable |
-| Build/test automation | Missing | No Makefile, test runner, or CI |
+| Build/test automation | M2 foundation completed | `make`, `make test`, and `make clean` build and validate only the modules that exist |
 
 ## Build and environment status
 
-Audit commands were read-only; no software was installed.
+The separately approved environment gate passed on 21 July 2026:
 
-- Native Windows `PATH`: Git is available (`2.53.0.windows.1`); `make`, `flex`, `bison`, `gcc`, `g++`, and Clang were not found.
-- Off-path MinGW: `C:\MinGW\bin` contains GCC/G++ `6.3.0` and `mingw32-make` `3.82.90`, but no Flex/Bison.
-- `wsl.exe` reports that Windows Subsystem for Linux itself is not installed. Enabling it and installing a distribution may require administrator approval, network access, and a restart.
-- `make` failed because the command is unavailable.
-- Direct `C:\MinGW\bin\mingw32-make.exe` ran but failed with `No targets specified and no makefile found.`
-- No compile, compiler execution, or automated test was possible.
+- WSL `2.7.10.0`, default WSL version 2;
+- Ubuntu `24.04.4 LTS` using WSL2;
+- GCC `13.3.0`, GNU Make `4.3`, Flex `2.6.4`, Bison `3.8.2`, and Git `2.43.0`;
+- direct C11 and Flex/Bison/GCC smoke builds passed;
+- the GNU Make smoke build passed; and
+- the existing Windows checkout is readable through `/mnt/e`.
 
-Primary environment plan: pinned Ubuntu 24.04 LTS on WSL2 with C11, Flex, Bison, GCC, GNU Make, Git, and Bash. Exact setup commands are in `docs/TOOLCHAIN.md`; no installation was approved or performed. Before M2, separate approval is required, then observed tool versions and the environment go/no-go result must be recorded. Native Windows is unsupported unless separately validated.
+Windows remains the canonical editing/Git worktree. WSL performs builds and tests against the same mounted checkout. Native Windows compilation is not a supported target.
 
 ## Test status and known coverage gaps
 
+- `make test` currently validates the M2 generated token header and AST subsystem only: 15/15 named AST tests pass and the official-sample-shaped printer output matches `tests/expected/ast_unit.stdout` byte-for-byte after CRLF normalization.
+- Recursive destruction executed successfully for nested trees; memory-leak verification remains unperformed because no leak-analysis package was approved or installed.
 - All 13 test files and both example files are Markdown containing fenced C-like snippets. No extraction runner exists.
 - Only the seven invalid tests contain prose `Expected` sections; no test has recorded actual output.
 - Valid tests have no expected AST, TAC, stdout, or exit status.
@@ -92,16 +96,15 @@ See `docs/TEST_MATRIX.md` for per-test status.
 - Diagnostics: six non-overlapping semantic triggers with dependent-cascade suppression.
 - Parser boundary: the completed start symbol is accepted through normal Bison EOF; no custom `END` token is part of the 32-token catalog.
 - Tests/output: `.mc` is the primary fixture/example extension, `.txt` is accepted, and the future driver will not enforce an extension; deterministic AST/TAC stdout, line-aware stderr, phase exit codes, and expected/actual evidence rules remain fixed.
-- Environment: pinned Ubuntu 24.04 LTS on WSL2 is planned; no installation was authorized or attempted.
+- Environment: the pinned Ubuntu 24.04 LTS on WSL2 environment was subsequently installed and passed the toolchain gate recorded above.
 
 Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CONVENTIONS.md`, and `docs/TOOLCHAIN.md`.
 
 ## Known risks
 
 - The audit began ten days before the 31 July deadline, leaving no schedule slack beyond the planned 30 July freeze.
-- No complete development toolchain is active.
-- Installing/enabling the proposed WSL toolchain may require external approval, network access, administrator rights, and a restart; this is a go/no-go dependency for implementation.
-- One meaningful Shimul contribution now exists; Nayem, Dipro, and Mehedi still require genuine reviewed contributions before submission.
+- The toolchain is ready, but all post-AST compiler modules remain on the critical path with little schedule slack.
+- Shimul's M1 and Nayem's M2 are genuine reviewed milestones; Dipro and Mehedi still require genuine reviewed contributions before submission.
 - Semantic analysis has the highest indicative implementation weight (20%) and currently has no design/code/tests.
 - The inherited README still describes the instructor template rather than Team Chonnochara's implementation.
 - The fork is one README commit behind the instructor repository; review that upstream change before deciding whether to merge it.
@@ -109,12 +112,10 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 
 ## Current development stage and next action
 
-M1 is complete in the commit containing this state file. The handoff is:
+M1 is committed and pushed. The environment gate passed. M2 is completed, validated, and approved as Nayem's milestone. The handoff is:
 
-1. Do not push until the user explicitly approves the verified local commit.
-2. Do not start M2 until the user explicitly authorizes the next milestone.
-3. Obtain separate explicit approval before any WSL/Ubuntu/package installation and record observed versions when it occurs.
-4. After the environment gate passes, Nayem owns M2: establish the C/Make/test foundation and implement the AST model, source locations, cleanup, printer, and focused tests.
-5. Advance to Dipro only after Nayem's genuine reviewed M2 commit.
+1. Verify the approved local M2 commit contains only its C11/AST foundation, focused tests, and related documentation.
+2. Do not push the M2 commit or begin M3 until the user explicitly approves the next action.
+3. Keep **Dipro** as the next intended contributor for M3 lexical analysis against the generated Bison header.
 
-No compiler implementation is claimed by M1. The current branch contains one approved Team Chonnochara documentation/foundation contribution and remains unpushed pending user direction.
+No lexer, complete parser, symbol table, semantic analysis, TAC, driver, or end-to-end compiler behavior is claimed by M2.

@@ -1,6 +1,6 @@
 # Formal Context-Free Grammar
 
-Status: **M1 grammar approved and recorded by the first Team Chonnochara commit containing this file; not yet implemented in Bison.**
+Status: **M1 grammar approved and recorded; the full CFG is not yet implemented in Bison. M2's `src/parser/parser.y` is only the shared 32-token interface and placeholder production for later M4 completion.**
 
 Authority: Section 5 of `Compiler Construction Lab Project Manual.pdf`, together with the manual's explicit semantic initializer example in §4.5. This grammar includes only manual-required/manual-derived forms plus documented consistency edge decisions such as allowing empty block contents. Semantic constraints are in `docs/LANGUAGE_SPEC.md`.
 

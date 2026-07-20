@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1 language/build/test decisions are approved and recorded by the first Team Chonnochara commit, owned and reviewed by Shimul.
+Status: M1 decisions are approved and committed. M2 implementation decisions below are validated, reviewed, and approved as Nayem's milestone.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -47,6 +47,19 @@ Full rules and matrices are authoritative in `docs/LANGUAGE_SPEC.md`; formal syn
 
 Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 
+## M2 AST and build decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-201 | Represent the AST as one public `AstNodeKind`-tagged `AstNode` union, with explicit child pointers and one reusable `AstNodeList` dynamic array for programs/blocks. | Directly mirrors the approved grammar, stays easy to traverse in semantics/TAC, and avoids a generic container framework. |
+| D-202 | Store a line-only `SourceLocation` on every AST node. | The manual requires line-aware diagnostics; columns/ranges can be added only if a later phase demonstrates a need. |
+| D-203 | Copy every constructor-supplied identifier name. A successful constructor owns its child nodes; failure leaves child ownership with the caller. Successful list append transfers the statement to the list. | Gives one consistent lifetime rule for parser actions and prevents borrowed lexer buffers from outliving a token. |
+| D-204 | Use one `AST_NODE_IF` with a required then-block and optional else-block; omit punctuation/parenthesis nodes. | Both required forms share structure, while the expression tree already records parenthesized grouping. |
+| D-205 | Return `NULL`/`false` for invalid constructor arguments or allocation/list-growth failure; keep these internal failures separate from future `LEX_`, `SYN_`, and `SEM_` diagnostics. | Simple, testable C error handling without terminating inside a reusable data-structure module. |
+| D-206 | Print a deterministic two-space-indented tree with source lines and labeled structural edges; represent an empty statement list as `<empty>`. | Produces readable presentation output and a stable byte-comparable test oracle without adding Graphviz. |
+| D-207 | Keep all 32 token declarations in the minimal `src/parser/parser.y`; generate the shared Bison header before any future lexer compilation. The current one-token placeholder production is not the language parser. | Establishes one token-number authority now, satisfies the M2 roadmap, and avoids duplicating token enums in Flex/C. M4 replaces the placeholder production with the approved CFG. |
+| D-208 | Build only existing M2 artifacts and place every generated object, executable, Bison output, and routine test result under ignored `build/`. | Makes `make`, `make test`, and `make clean` truthful while avoiding fake rules for missing compiler phases. |
+
 ## Resolved ambiguity register
 
 | Prior ID | Question | Resolution |
@@ -68,7 +81,6 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 
 | ID | Status | Decision area | Why deferred |
 | --- | --- | --- | --- |
-| D-102 | Proposed for M2 | Exact AST C tagged-union/list representation and ownership APIs | Syntax node requirements are known; concrete C interfaces belong to AST implementation. |
 | D-103 | Proposed for M5 | Exact scope-record/symbol-list storage structure | Scope behavior is fixed, but data structure implementation belongs to the symbol-table milestone. |
 | D-104 | Proposed for M8 | Exact TAC instruction structure and final textual spelling | Determinism is fixed; representation belongs to TAC implementation. |
 

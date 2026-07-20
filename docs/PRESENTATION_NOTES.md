@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: Initial outline only. No slide, screenshot, or live compiler evidence exists yet.
+Status: M2 provides buildable AST/token-foundation evidence and deterministic AST output. No full compiler, TAC demo, slide deck, or screenshot evidence exists yet.
 
 ## Core story
 
@@ -34,6 +34,16 @@ M1 contract summary for a future language slide:
 9. **Challenges/solutions:** only claim challenges actually encountered and logged.
 10. **Live demo, lessons, and readiness for unseen input.**
 
+## M2 AST demonstration material
+
+- Show `AstNodeKind` selecting the active member of one `AstNode` union.
+- Explain that program/block nodes own source-ordered dynamic statement lists; an empty block has a zero-length list and prints `<empty>`.
+- Contrast a declaration's optional initializer child with a later assignment's required value child.
+- Point out that one `If` node represents both `if` and `if-else` through an optional else block.
+- Trace `a + b * 2`: the addition node owns an identifier on the left and a multiplication subtree on the right, preserving parser precedence without a parentheses node.
+- Show that every printed node includes `line=<n>` so later semantic diagnostics retain source context.
+- Run `make test` and explain the two results: generated Bison token-header validation and 15 direct AST tests plus golden printer comparison.
+
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
 ## Required live-demo sequence
@@ -65,10 +75,12 @@ Keep the demo inputs short enough that output can be explained live. Do not rely
 These are verified project-start challenges and may be used if still relevant:
 
 - The fork began as an instructor-only template with zero implementation and zero team commits.
-- The current Windows environment lacks an active Flex/Bison/GNU build toolchain.
+- At project start, native Windows lacked an active supported Flex/Bison/GNU build toolchain.
 - Inherited tests are fenced Markdown sketches without actual outputs.
 - The manual's nested-block requirement and initialized type-mismatch example required explicit grammar compatibility. M1 made blocks true statements, allowed empty block contents as a documented edge case, and let declaration initializers reach semantic type checking without adding bonus syntax.
 - The audit began only ten days before the strict 31 July deadline.
+
+Resolved implementation challenge: the supported WSL2/Ubuntu toolchain was installed and validated, including direct C11/Flex/Bison/GCC and GNU Make smoke builds. M2 then kept all generated artifacts under ignored `build/` while building from the Windows-mounted path containing spaces.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

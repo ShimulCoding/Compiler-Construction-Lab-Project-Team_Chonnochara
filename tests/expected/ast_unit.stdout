@@ -1,0 +1,66 @@
+PASS: empty block
+PASS: multiple statements
+PASS: nested block
+PASS: uninitialized declaration
+PASS: initialized declaration
+PASS: assignment
+PASS: arithmetic binary expression
+PASS: logical unary expression
+PASS: if without else
+PASS: if with else
+PASS: while
+PASS: print
+PASS: constructor validation
+AST sample:
+Program(line=1)
+  Declaration(line=1, type=int, name=x)
+  Declaration(line=2, type=int, name=y)
+  Declaration(line=3, type=bool, name=flag)
+  Assignment(line=5, name=x)
+    Value
+      IntegerLiteral(line=5, value=10)
+  Assignment(line=6, name=y)
+    Value
+      IntegerLiteral(line=6, value=0)
+  Assignment(line=7, name=flag)
+    Value
+      BooleanLiteral(line=7, value=true)
+  While(line=9)
+    Condition
+      BinaryExpression(line=9, operator=">")
+        Left
+          Identifier(line=9, name=x)
+        Right
+          IntegerLiteral(line=9, value=0)
+    Body
+      Block(line=9)
+        Assignment(line=10, name=y)
+          Value
+            BinaryExpression(line=10, operator="+")
+              Left
+                Identifier(line=10, name=y)
+              Right
+                Identifier(line=10, name=x)
+        Assignment(line=11, name=x)
+          Value
+            BinaryExpression(line=11, operator="-")
+              Left
+                Identifier(line=11, name=x)
+              Right
+                IntegerLiteral(line=11, value=1)
+  If(line=14)
+    Condition
+      BinaryExpression(line=14, operator="==")
+        Left
+          Identifier(line=14, name=flag)
+        Right
+          BooleanLiteral(line=14, value=true)
+    Then
+      Block(line=14)
+        Print(line=15, name=y)
+    Else
+      Block(line=16)
+        Print(line=17, name=x)
+PASS: AST printer determinism
+PASS: recursive cleanup execution
+AST unit tests: 15 passed

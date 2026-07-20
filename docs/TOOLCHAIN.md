@@ -1,6 +1,6 @@
 # Build Environment Plan
 
-Status: **Plan only. No WSL feature, Ubuntu distribution, compiler package, or system dependency was installed or changed during M1. Explicit user approval is required before running any installation command below.**
+Status: **Installed and validated under explicit staged approval on 21 July 2026. The complete environment gate passed before M2 implementation.**
 
 Checked against official Microsoft, Canonical, and Ubuntu sources on 21 July 2026.
 
@@ -22,55 +22,36 @@ Ubuntu 26.04 is the current latest LTS and the moving `Ubuntu` WSL alias now poi
 
 Do not substitute the moving `Ubuntu` alias in recorded setup commands.
 
-## 2. Current host audit
+## 2. Current verified host
 
-- The registry reports `Windows 10 Home Single Language`, display version `25H2`, build `26200.8894`; the build number exceeds Microsoft's WSL install minimum of Windows 10 build 19041.
-- `wsl.exe --status` and `wsl.exe --list --verbose` report that WSL is not installed.
-- Native Windows `PATH` does not currently provide Make, GCC, Flex, or Bison.
-- An old MinGW GCC/Make exists off `PATH`, but Flex/Bison do not; this is not the supported project environment.
-- Hardware virtualization status could not be confirmed under the current read-only permissions. It must be enabled in firmware for WSL 2.
+- Windows WSL package: `2.7.10.0`; default WSL architecture version: 2.
+- Distribution: `Ubuntu-24.04`, running as WSL version 2.
+- Ubuntu release: `24.04.4 LTS`; initialized Linux user: `shimul`.
+- The canonical repository remains the Windows `E:` checkout and is readable through `/mnt/e`.
+- Native Windows compilation remains unsupported; Windows Git is authoritative for status, diff, identity, commits, and pushes.
+- WSL performs GCC/Flex/Bison/Make builds and tests against the mounted checkout. No second Linux clone or permanent global `safe.directory` exception is used.
 
-WSL installation can require administrator/UAC approval, Windows optional-feature changes, network downloads, virtualization support, and a restart. None is authorized merely by this document.
+## 3. Recorded approved setup commands
 
-## 3. Commands requiring future explicit approval
+### 3.1 WSL and Ubuntu installation
 
-### 3.1 Elevated PowerShell
-
-Open PowerShell with **Run as administrator** and run only after approval:
+The normal pinned-distribution path was approved and completed; the web-download fallback was not needed:
 
 ```powershell
 wsl --install -d Ubuntu-24.04
 ```
 
-This is the official one-command path that enables required WSL components and installs the explicitly pinned distribution. Restart Windows when prompted.
+Windows was restarted when requested before post-install verification continued.
 
-If the Store-backed download hangs or is unavailable, the official network-download fallback is:
-
-```powershell
-wsl --install --web-download -d Ubuntu-24.04
-```
-
-Use the fallback only after the normal command actually fails and the user approves the additional download attempt.
-
-### 3.2 PowerShell after restart
-
-Update and set the default architecture, then verify:
+### 3.2 Post-restart verification
 
 ```powershell
-wsl --update
-wsl --set-default-version 2
 wsl --version
 wsl --status
 wsl --list --verbose
 ```
 
-The final listing must contain `Ubuntu-24.04` with `VERSION` equal to `2`. Only if it shows version 1, run:
-
-```powershell
-wsl --set-version Ubuntu-24.04 2
-```
-
-Canonical's current Ubuntu-on-WSL guidance requires WSL `2.4.10` or later for the modern Ubuntu 24.04-and-later image format. Confirm that `wsl --version` reports at least `2.4.10` before treating the environment as ready; if it does not, stop and diagnose the failed `wsl --update` rather than continuing.
+The observed WSL version exceeded the required `2.4.10`, the default was already 2, and Ubuntu was already WSL2. No `wsl --update` or distribution-conversion command was needed.
 
 Launch the distribution in its Linux home directory:
 
@@ -80,19 +61,19 @@ wsl ~ -d Ubuntu-24.04
 
 On first launch, create the requested Linux username and password. The password is used for `sudo`; it is not stored in this repository.
 
-### 3.3 Ubuntu shell
+### 3.3 Ubuntu package installation
 
-Inside Ubuntu—not PowerShell—run only after package-install approval:
+Inside Ubuntu—not PowerShell—the separately approved minimal package commands completed successfully:
 
 ```bash
 cat /etc/os-release
 sudo apt update
-sudo apt install build-essential flex bison git
+sudo apt install build-essential flex bison
 ```
 
-`build-essential` supplies GCC, GNU Make, C library headers, and related build tools. Flex's planned `%option noyywrap` avoids an unnecessary `-lfl` link dependency. If that decision changes, check/install the appropriate `libfl-dev` package explicitly rather than assuming it exists.
+Git `2.43.0` was already present and was not reinstalled solely for the project. No `apt upgrade` or unrelated package command ran. `build-essential` supplies GCC, GNU Make, C library headers, and related build tools. Flex's planned `%option noyywrap` avoids an unnecessary `-lfl` link dependency.
 
-Record observed versions instead of assuming archive versions:
+Observed versions were recorded rather than assumed from package documentation:
 
 ```bash
 gcc --version
@@ -102,6 +83,16 @@ bison --version
 git --version
 dpkg-query -W -f='${binary:Package}\t${Version}\n' build-essential gcc make flex bison git
 ```
+
+| Tool | Observed version |
+| --- | --- |
+| GCC | `13.3.0` |
+| GNU Make | `4.3` |
+| Flex | `2.6.4` |
+| Bison | `3.8.2` |
+| Git | `2.43.0` |
+
+Observed package versions: `build-essential 12.10ubuntu1`, `gcc 4:13.2.0-7ubuntu1`, `make 4.3-4.1build2`, `flex 2.6.4-8.2build1`, `bison 2:3.8.2+dfsg-1build2`, and `git 1:2.43.0-1ubuntu7.3`.
 
 ## 4. Repository location after installation
 
@@ -119,9 +110,9 @@ Quoting is mandatory because the path contains spaces. Do not run simultaneous G
 
 This mounted path is acceptable for the first build smoke test. Test scripts must normalize CRLF/LF and must not depend on executable bits when operating under `/mnt/e`.
 
-### 4.2 Preferred long-term Linux workspace
+### 4.2 Deferred Linux-filesystem alternative
 
-Microsoft recommends storing Linux-command-line projects in the WSL filesystem for performance and Linux filesystem semantics. Only after the approved M1 commit is pushed should the team create a fresh canonical Linux clone:
+The team currently chooses one Windows canonical worktree to avoid divergent clones and to keep contributor identity/commit handling on Windows. Do not create the following alternative unless a later measured performance or filesystem problem causes the team to approve a migration:
 
 ```bash
 mkdir -p ~/projects
@@ -130,11 +121,11 @@ git clone https://github.com/ShimulCoding/Compiler-Construction-Lab-Project-Team
 cd Compiler-Construction-Lab-Project-Team_Chonnochara
 ```
 
-Reopen the IDE/Codex against that clone and choose one canonical working copy. Do not let Windows and WSL clones diverge. Windows Explorer can access the Linux files through `\\wsl$\Ubuntu-24.04\home\<linux-user>\projects\`.
+If a migration is later approved, reopen the IDE/Codex against that clone and choose exactly one canonical worktree. Do not let Windows and WSL clones diverge.
 
-## 5. Git identity policy in WSL
+## 5. Git identity policy
 
-Do not set a global shared-laptop identity. The first approved M1 commit uses per-command identity from inside the intended repository:
+Windows Git is authoritative for contributor identity, status, commits, and pushes. Do not set a global shared-laptop identity. The first approved M1 commit used its approved per-command identity:
 
 ```bash
 git -c user.name='Shimul' -c user.email='shimulc17@gmail.com' commit -m 'Shimul: Defined the mandatory language contract and formal grammar'
@@ -144,7 +135,7 @@ The user approved this exact identity and message for the M1 commit. Future cont
 
 ## 6. M2 environment gate
 
-M2 implementation must not begin until all of these preconditions are observed and recorded:
+All preconditions passed before M2 implementation:
 
 1. `wsl --version` reports WSL `2.4.10` or later.
 2. `wsl --list --verbose` shows `Ubuntu-24.04` on WSL 2.
@@ -153,7 +144,15 @@ M2 implementation must not begin until all of these preconditions are observed a
 5. The repository is reachable from the selected canonical workspace.
 6. `git status --short --branch` shows the expected branch and reviewed state.
 
-The first M2 implementation check is a tiny generated Flex/Bison smoke build. It is an M2 task/exit check, not a circular pre-M2 requirement and not an M1 activity.
+Additional temporary tests outside the repository passed:
+
+- strict C11 GCC compilation and execution;
+- Bison header/C generation with `-Wall -Wcounterexamples`;
+- Flex generation consuming the Bison token header;
+- direct GCC linking without `-lfl` using `%option noyywrap`; and
+- `make clean`, `make`, and executable acceptance through a temporary Makefile.
+
+M2 then passed its repository build with `make clean`, `make`, and `make test` under the same environment.
 
 ## 7. Official sources
 

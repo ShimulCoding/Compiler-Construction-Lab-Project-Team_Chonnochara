@@ -3,7 +3,7 @@
 Sources compared:
 
 1. `Compiler Construction Lab Project Manual.pdf` (highest authority, read completely on 21 July 2026)
-2. Current repository baseline at `7d073fa`
+2. Current committed baseline at `6f5b96e` plus the uncommitted M2 working tree
 3. Team Chonnochara Codex master project instruction
 
 Status meanings: **Complete** = verified evidence exists; **Complete (documented)** = the governing constraint is recorded but does not imply implementation; **Partial** = illustrative/incomplete evidence only; **Missing** or **Missing implementation** = no required implementation/evidence; **Pending decision/environment** = a contract or prerequisite must be settled; **Ongoing** = continuous team duty; **Optional** = not required.
@@ -13,18 +13,18 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Requirement | Source | Status | Evidence / action |
 | --- | --- | --- | --- |
 | Fixed instructor-defined language | Manual §§3, 5 | Complete (documented) | Minimal accepted contract is in `AGENTS.md` and `docs/LANGUAGE_SPEC.md` |
-| Six required front-end/TAC modules | Manual §4 | Missing | No source tree exists |
+| Six required front-end/TAC modules | Manual §4 | Partial | AST subsystem implemented in M2; the other modules remain missing and parser has only a token interface |
 | TAC is final required output | Manual §§4.6, 6 | Complete (documented) | Scope recorded; no backend planned |
 | No mandatory backend, assembly, register allocation, linking, optimization, executable generation, or instruction scheduling | Manual §6 | Complete (documented) | Prohibited before core completion; optional optimization only after all mandatory work |
-| C or C++ with Flex/Bison | Manual §§7, FAQ | Pending environment | C11 and pinned Ubuntu 24.04/WSL2 plan documented; no installation approved/performed |
-| GNU Make single-command build | Manual §§7-8 | Missing | No Makefile |
-| Clean professional structure | Manual §8 | Partial | `docs/`, `tests/`, and `examples/` exist; `src/`, Makefile, and build layout are absent |
-| Generated files excluded where practical | Manual §8 | Partial | Baseline `.gitignore` covers common names; build layout still pending |
+| C or C++ with Flex/Bison | Manual §§7, FAQ | Complete (environment) | Verified C11/Flex/Bison/GCC/Make toolchain on Ubuntu 24.04.4 LTS under WSL2 |
+| GNU Make single-command build | Manual §§7-8 | Partial | M2 `Makefile` builds every existing M2 component; full compiler target grows with later modules |
+| Clean professional structure | Manual §8 | Partial | `src/common`, `src/ast`, `src/parser`, and unit/expected test foundations exist; remaining module directories are added with their implementations |
+| Generated files excluded where practical | Manual §8 | Complete (M2) | All current generated objects, executables, Bison files, and test results stay under ignored `/build/` |
 | Shared public GitHub fork | Manual §9, FAQ | Complete | Team fork exists under `ShimulCoding` |
 | Regular meaningful commits from every member | Manual §9 | Partial | First meaningful team commit belongs to Shimul; Nayem, Dipro, and Mehedi remain pending |
 | AI-assisted work understood by every member | Manual §10 | Ongoing | Must be verified through review/viva preparation |
 | Original work and external citations | Manual §17 | Ongoing | Record references as development proceeds |
-| Readable code with appropriate explanatory comments | Manual §§1, 17 | Missing implementation | No source exists; comment intent/invariants without restating obvious code |
+| Readable code with appropriate explanatory comments | Manual §§1, 17 | Partial | M2 C/Bison/test code is modular and warning-clean; later modules remain |
 | Strict 31 July 2026 deadline | Manual §16 | Complete (documented) | Roadmap targets 30 July freeze |
 
 ## Fixed lexical and syntactic language
@@ -65,9 +65,9 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Module requirement | Status | Required completion evidence |
 | --- | --- | --- |
 | Flex lexer recognizes all tokens/comments/errors | Missing | Lexer source + lexical goldens |
-| Bison parser recognizes CFG and recovers basically | Missing | Grammar + conflict report/recovery tests |
-| AST built during parsing | Missing | Node implementation + parser actions |
-| Readable AST printing | Missing | Stable golden output |
+| Bison parser recognizes CFG and recovers basically | Missing | M2 has only the generated token interface; full grammar + conflict report/recovery tests remain M4 |
+| AST built during parsing | Partial | AST node implementation exists; parser construction actions remain M4 |
+| Readable AST printing | Complete (M2 unit) | Deterministic line-aware indentation printer matches `tests/expected/ast_unit.stdout` |
 | Symbol name/type/scope/declaration line | Missing | Entry structure + tests |
 | Symbol insert/lookup/enter/exit scope | Missing | Unit/integration tests |
 | Undeclared variable detection | Missing | Isolated semantic test |
@@ -92,12 +92,12 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Lexical error test | Partial | `@` sketch exists; no runnable input/actual output |
 | Syntax error test | Partial | Combined missing `;`/`)` sketch; no actual output |
 | Separate test for every six semantic rules | Partial | Five labels exist; invalid expression is absent and two overlap |
-| Every input paired with expected/actual output | Missing | Invalid prose expectations only; no actual outputs |
+| Every input paired with expected/actual output | Partial | M2 AST unit output has a tracked golden and ephemeral actual result; language fixtures remain |
 | Executable test fixtures | Missing | All current inputs are fenced Markdown; future fixtures use primary `.mc` with `.txt` compatibility coverage |
-| Automated test command | Missing | No runner or `make test` |
+| Automated test command | Partial | `make test` validates the M2 token/AST foundation; expand with every compiler phase |
 | Full type/literal/operator coverage | Missing | Major families absent |
 | Scope/control-flow integration coverage | Missing | No valid nested/shadowing case |
-| AST and TAC golden output | Missing | No output artifacts |
+| AST and TAC golden output | Partial | Direct-construction AST golden exists; parser-produced AST and all TAC goldens remain |
 | Build/run/error screenshots | Missing | Final-deliverable task |
 | Clean-environment validation | Missing | M16 exit criterion |
 
@@ -106,18 +106,18 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Deliverable | Status | Current evidence / action |
 | --- | --- | --- |
 | Team project README with exact build/run instructions | Missing | Inherited template README is generic and mojibaked in places |
-| Complete buildable source | Missing | No source |
+| Complete buildable source | Partial | M2 AST/build/token foundation is buildable; full compiler modules remain |
 | Formal CFG in report | Missing | M1 then report integration |
 | Project report with manual chapter structure | Partial | `REPORT_OUTLINE.md` initialized; content/evidence pending |
-| Architecture/module interaction documentation | Partial | Proposed architecture only; update with implementation |
+| Architecture/module interaction documentation | Partial | M2 files, APIs, ownership, build dependencies, and future interfaces are documented; later modules remain |
 | Presentation slides | Missing | Notes skeleton only |
 | Valid and invalid sample programs | Partial | Markdown sketches only |
 | Sample outputs | Missing | No actual compiler output |
 | Screenshots | Missing | Capture after stable integration |
-| Exact compilation/execution instructions | Missing | Generic template commands are not executable here |
+| Exact compilation/execution instructions | Partial | `make`, `make test`, and `make clean` work for M2; compiler run command awaits the driver |
 | Live valid and invalid demonstration | Missing | Demo sequence planned, compiler absent |
 | Lexical, syntax, semantic, and TAC demonstrations | Missing | No executable |
-| Individual viva preparation | Partial | Notes initialized; implementation explanations pending |
+| Individual viva preparation | Partial | M2 AST/build interfaces and ownership are documented; later module explanations remain |
 | Optional video | Optional | Consider only after mandatory deliverables |
 
 ## Evaluation priority awareness

@@ -19,6 +19,9 @@ parser.output
 *.o
 *.obj
 
+# All generated M2 and later build/test artifacts
+/build/
+
 # ==================================================
 # Executables
 # ==================================================

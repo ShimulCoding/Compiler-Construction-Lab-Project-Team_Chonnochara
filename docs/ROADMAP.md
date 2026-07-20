@@ -1,6 +1,6 @@
 # Development and Contribution Roadmap
 
-Status: M1 was approved and completed in the first Team Chonnochara commit owned by Shimul. Nayem is next in the contribution cycle; M2 must wait for explicit user authorization and the separately approved environment gate.
+Status: M1 is committed and pushed. The toolchain gate passed. M2 is completed, validated, and approved as Nayem's milestone. Dipro is next; M3 has not started and must await instruction.
 
 The initialization documents were incorporated into Shimul's coherent M1 foundation milestone. This consumes Shimul's current turn and advances the intended contribution cycle to Nayem without changing the existing M2-M16 ownership sequence.
 

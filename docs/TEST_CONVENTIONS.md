@@ -1,6 +1,6 @@
 # Test, Input, and Output Conventions
 
-Status: **M1 conventions approved and recorded by the first Team Chonnochara commit. No test runner, executable fixture, or compiler exists yet.**
+Status: **M1 conventions approved. M2 provides a unit-test runner and ignored routine results for the AST/token foundation; executable language fixtures and the compiler driver do not yet exist.**
 
 These conventions make later phase tests deterministic while satisfying the manual's expected/actual-output requirement.
 
@@ -140,7 +140,7 @@ Case basenames must be unique across the suite. Suggested form is `<phase>_<feat
 
 ## 8. Automated command contract
 
-M2 will establish:
+M2 establishes:
 
 ```text
 make
@@ -148,8 +148,8 @@ make test
 make clean
 ```
 
-- `make test` builds first, runs all registered fixtures, compares stdout/stderr/exit status, prints a concise pass/fail summary, and returns nonzero if any case fails.
-- The POSIX test runner quotes all paths because the current Windows-mounted repository path contains spaces.
+- At M2, `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST unit tests, compares deterministic AST stdout with a tracked golden file, prints a concise pass/fail summary, and returns nonzero on failure. Language fixture/exit-code checks are added as the compiler phases become executable.
+- The POSIX test runner quotes all paths because the current Windows-mounted repository path contains spaces and normalizes a tracked CRLF golden before comparison.
 - `make clean` removes only generated content under `build/`; it never deletes tracked expected or curated actual evidence.
 
-No command in this document has been executed during M1 because the compiler, Makefile, and approved Linux toolchain do not yet exist.
+Verified M2 command: `make clean`, `make`, and `make test` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because only the AST/token/build foundation exists.
