@@ -1,0 +1,108 @@
+# Test Matrix
+
+Last audited/contract-updated: 21 July 2026.
+
+No compiler or test runner exists. Therefore every inherited case is either **Blocked** or merely **Partial coverage**; none has an actual compiler result. Do not change a status to Pass until the command and output were observed.
+
+## Inherited template cases
+
+| ID | Category | Input | Expected result currently documented/inferred | Actual result | Status |
+| --- | --- | --- | --- | --- | --- |
+| TV-01 | Valid declaration | `tests/valid/declaration.md` | Clean declarations/boolean assignment; AST/TAC unspecified | Not run: no compiler | Blocked |
+| TV-02 | Valid assignment | `tests/valid/assignment.md` | Clean identifier/literal assignments; AST/TAC unspecified | Not run: no compiler | Blocked |
+| TV-03 | Valid arithmetic | `tests/valid/arithmetic.md` | `b * 2` precedes `a + ...`; print; TAC unspecified | Not run: no compiler | Blocked |
+| TV-04 | Inherited if-else sketch | `tests/valid/if_else.md` | Contains `print 0;` | Not run: no compiler | Conflicts with finalized identifier-only print; revise/reclassify during fixture conversion |
+| TV-05 | Valid while | `tests/valid/while.md` | Clean loop; TAC unspecified | Not run: no compiler | Blocked |
+| TV-06 | Full valid sketch | `tests/valid/complete_program.md` | Clean declarations, loop, conditions, branches, print through TAC | Not run: no compiler | Blocked; candidate E2E seed |
+| TI-01 | Lexical error | `tests/invalid/lexical_error.md` | `Lexical Error: Invalid token '@'` | Not run: no lexer | Partial sketch; expected line missing |
+| TI-02 | Syntax errors/recovery | `tests/invalid/syntax_error.md` | Missing `;` and missing `)` diagnostics | Not run: no parser | Partial sketch; combined/cascade-prone |
+| TI-03 | Undeclared variable | `tests/invalid/undeclared_variable.md` | One diagnostic for each of its two independent undeclared `y` occurrences | Not run: no semantics | Partial sketch; reduce to one occurrence or expect two diagnostics during conversion |
+| TI-04 | Redeclaration | `tests/invalid/redeclaration.md` | Same-scope redeclaration of `count` | Not run: no semantics | Partial sketch |
+| TI-05 | Scope violation | `tests/invalid/scope_violation.md` | `y` reported out of scope after block | Not run: no semantics | Partial sketch; needs declaration history |
+| TI-06 | Mislabeled inherited assignment error | `tests/invalid/type_mismatch.md` | Assignment expected `bool`, found `int` | Not run: no semantics | Final taxonomy classifies this as invalid assignment; replace the distinct type-mismatch fixture with the manual's initialized declaration |
+| TI-07 | Invalid assignment | `tests/invalid/invalid_assignment.md` | Cannot assign `bool` to `int` | Not run: no semantics | Partial sketch; overlaps TI-06 |
+| EX-01 | Valid demonstration | `examples/valid/sample_program.md` | Representative program succeeds | Not run: no compiler | Blocked; no expected output |
+| EX-02 | Multi-error stress | `examples/invalid/sample_program.md` | Syntax and semantic failures | Not run: no compiler | Blocked; no deterministic oracle |
+
+## Mandatory cases to create
+
+| Planned ID | Category / input focus | Expected evidence | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| E2E-01 | Non-trivial all-phase valid program | Initialized/uninitialized declarations, standalone nested scope, stable AST, and TAC with temporaries, labels, jumps, and print; exit 0 | Not created | Missing |
+| LEX-01 | All keywords, literals, delimiters, and single-character operators | Correct tokenization and line tracking | Not created | Missing |
+| LEX-02 | Identifier boundaries and keyword prefixes | Longest-match identifiers vs keywords | Not created | Missing |
+| LEX-03 | `<`/`<=`, `>`/`>=`, `!`/`!=`, `=`/`==`, `&&`, and `\|\|` adjacency | Related single/multi-character operators are distinguished atomically | Not created | Missing |
+| LEX-04 | Supported `//` comments and whitespace | Discarded with correct later line numbers | Not created | Missing |
+| LEX-05 | Invalid character/malformed token | Line-aware lexical diagnostic; nonzero exit | Not created | Missing |
+| LEX-06 | Integer/float boundaries and malformed numbers | Contract-defined forms accepted; invalid forms diagnosed without misleading splits | Not created | Missing |
+| LEX-07 | Unsupported `/* ... */` text | Must not be accepted as a comment | Not created | Missing |
+| SYN-01 | Each statement form, both declaration forms, and standalone/nested/empty blocks | Correct AST shapes; every block is a scope and initializer is an optional declaration child | Not created | Missing |
+| SYN-02 | Arithmetic/relational/logical precedence and associativity | Golden AST proves grouping | Not created | Missing |
+| SYN-03 | Isolated missing semicolon | One stable line-aware syntax diagnostic | Not created | Missing |
+| SYN-04 | Recovery across statement boundary | Later safe error is also reported | Not created | Missing |
+| SYN-05B | `print` literal, expression, and parenthesized operand | Three isolated fixtures are rejected; identifier-only form remains accepted | Not created | Missing |
+| SYN-05C | Unbraced control body | Isolated fixture is rejected | Not created | Missing |
+| SYN-05F | Bare expression statement | Isolated fixture is rejected | Not created | Missing |
+| SYN-05G | Numeric unary sign | Isolated fixture is rejected | Not created | Missing |
+| SYN-06 | Official initializer and block derivations | `bool b = 5 + 3.2;`, `{ }`, and a multiply nested standalone block all parse before semantics | Not created | Missing |
+| SEM-01 | Use before declaration/never declared | Undeclared-variable diagnostic | Not created | Missing |
+| SEM-02A | Same-scope duplicate | `SEM_REDECLARATION`; first valid binding remains active | Not created | Missing |
+| SEM-02B | Nested shadow | Separate valid fixture succeeds and restores the outer binding on scope exit | Not created | Missing |
+| SEM-03 | Use after standalone/control/sibling block scope | Each brace pair establishes one scope; post-exit use receives the distinct out-of-scope diagnostic | Not created | Missing |
+| SEM-04 | Non-Boolean `if` and `while` conditions | Two isolated `SEM_TYPE_MISMATCH` fixtures state expected `bool` and actual type | Not created | Missing |
+| SEM-05 | Invalid assignment | Isolated LHS/RHS compatibility diagnostic | Not created | Missing |
+| SEM-06 | Invalid operator operands | e.g. boolean arithmetic or numeric logical operands rejected | Not created | Missing (mandatory) |
+| SEM-07 | Boolean/numeric equality | `SEM_TYPE_MISMATCH` names both incompatible domains without claiming one expected operand type | Not created | Missing |
+| SEM-08 | Valid mixed numeric operations and exact-type stores | Operation-local promotion plus matching assignment/initializer result types succeed; exit 0 | Not created | Missing |
+| SEM-09 | Implicit assignment conversion | Isolated `float = int` fixture produces `SEM_INVALID_ASSIGNMENT`; exit 3 | Not created | Missing |
+| SEM-10A | Valid initialized declarations | `int`, `float`, and `bool` initializers—including a mixed numeric expression yielding `float`—succeed | Not created | Missing |
+| SEM-10B | Manual initialized-declaration mismatch | `bool b = 5 + 3.2;` produces one `SEM_TYPE_MISMATCH`, not syntax or invalid-assignment errors | Not created | Missing |
+| SEM-10C | Exact initializer compatibility | `float f = 1;` produces `SEM_TYPE_MISMATCH`; no implicit widening is invented | Not created | Missing |
+| SEM-10D | Initializer cascade suppression and later visibility | Invalid operator/name reports its root error without a dependent mismatch; the fresh binding is still inserted so a later use does not add `SEM_UNDECLARED` | Not created | Missing |
+| SEM-10E | Initializer visibility and redeclaration | New name is invisible in its initializer, an outer shadowed binding can resolve, and a duplicate does not replace the first binding; a rejected duplicate's initializer is traversed for independent root errors but receives no compatibility check | Not created | Missing |
+| TAC-01 | Integer and float `+ - * /` plus contract-valid `%` | Correct temporaries, values, and evaluation order | Not created | Missing |
+| TAC-02 | All relational/logical operators | Correct boolean TAC and chosen logical strategy | Not created | Missing |
+| TAC-03 | `if`, `if-else`, nested branches | Deterministic conditional/unconditional jumps and labels | Not created | Missing |
+| TAC-04 | `while` and nested control flow | Back edge and exit labels | Not created | Missing |
+| TAC-05 | Assignment and print | Stable final instructions | Not created | Missing |
+| TAC-06 | Initialized and uninitialized declarations | Compound initializer emits expression TAC then one store; literal initializer emits a direct store; plain declaration emits none | Not created | Missing |
+| CLI-01 | Source path conventions | `.mc`, `.txt`, and another readable supplied path are accepted without extension-based rejection | Not created | Missing |
+
+## M1 static/document validation
+
+These checks validate the contract documents only; they are not compiler tests.
+
+| ID | Check | Expected | Actual | Status |
+| --- | --- | --- | --- | --- |
+| M1-V01 | Manual traceability | Every token/production maps to the manual or is labeled an implementation boundary | 23 nonterminals are defined and traced; all 22 non-start nonterminals are referenced on a RHS, while `<program>` is the start symbol | Pass (automated/documentary) |
+| M1-V02 | Token/operator inventory | 32 source tokens; all 14 listed arithmetic/relational/logical operators plus assignment/delimiters | Automated check found 32/32 catalog tokens and all 32 used by the BNF, with no unknown/unused terminal or custom `END` | Pass (automated static) |
+| M1-V03 | Official sample walkthrough | Section 5.5 program fits the CFG | Manual walkthrough completed | Pass (reasoned) |
+| M1-V04 | Grammar ambiguity review | Disjoint statement/declaration suffix starters, safe optional block content, layered expressions, no dangling else | Independent construction: 298 canonical LR(1) states and 85 merged LALR cores, with zero shift/reduce or reduce/reduce conflicts | Pass (static); actual Bison report pending toolchain |
+| M1-V05 | Semantic matrix review | Every valid signature and six error categories have one trigger | Independent review confirmed exact initializer compatibility, `SEM_TYPE_MISMATCH` classification, binding order, redeclaration behavior, cascade suppression, and TAC policy | Pass (documentary) |
+| M1-V06 | Toolchain source verification | Commands match current official Microsoft/Canonical/Ubuntu guidance | Official sources checked 2026-07-21 | Pass (research only) |
+| M1-V07 | System mutation check | No WSL/package installation; only the explicitly approved local M1 documentation commit | No installation command executed and no push performed | Pass |
+| M1-V08 | Markdown integrity | Balanced fences/tables, no trailing whitespace, UTF-8-readable content, final LF | 15 proposed Markdown files checked; zero structural issues | Pass (automated static) |
+| M1-V09 | Revised-form reachability | Standalone/empty nested blocks and both declaration forms derive; Section 5.5 still derives; normal EOF completes parsing | In-memory recognizer matched 12/12 expected cases: required forms accepted and unrelated forms rejected | Pass (static recognizer) |
+
+## Audit commands and results
+
+| Date | Command/check | Result |
+| --- | --- | --- |
+| 2026-07-21 | Native `make` | Failed: command not found |
+| 2026-07-21 | `C:\MinGW\bin\mingw32-make.exe` | Failed: no Makefile/targets |
+| 2026-07-21 | Source/build/test inventory | No source, Makefile, executable, generated code, or runner |
+| 2026-07-21 | Tool discovery | Git available; no usable Flex/Bison toolchain found on `PATH` or in checked common locations |
+
+## Required test-record format
+
+For each future run record:
+
+```text
+Date / environment:
+Command:
+Input:
+Expected output and exit code:
+Actual output and exit code:
+Status:
+Related commit:
+```

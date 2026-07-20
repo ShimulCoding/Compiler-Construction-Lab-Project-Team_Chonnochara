@@ -1,0 +1,87 @@
+# Design Decisions
+
+Status: M1 language/build/test decisions are approved and recorded by the first Team Chonnochara commit, owned and reviewed by Shimul.
+
+The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
+
+## Accepted project constraints
+
+| ID | Date | Decision | Reason |
+| --- | --- | --- | --- |
+| D-001 | 2026-07-21 | The official PDF manual is the highest project authority, with Section 5 controlling ambiguity elsewhere. | Explicit team instruction and manual §5. |
+| D-002 | 2026-07-21 | TAC ends the mandatory target-program pipeline; no hardware backend or unrelated bonus work precedes core completion. | Manual §§4.6, 6, 14. |
+| D-005 | 2026-07-21 | Generate TAC only after successful lexical, syntax, and semantic phases. | Required phase order and valid/invalid behavior. |
+| D-006 | 2026-07-21 | Keep generated Flex/Bison sources and build products untracked where practical. | Manual §8 and inherited `.gitignore`. |
+| D-007 | 2026-07-21 | Credit only genuine reviewed ownership; inherited and unreviewed AI-assisted work is not a member contribution. | Manual Git/viva policy and team instruction. |
+
+## Finalized M1 language decisions
+
+| ID | Decision | Classification | Minimal justification |
+| --- | --- | --- | --- |
+| D-003 | Accept a nonempty top-level statement sequence without requiring a special outer wrapper. A block may still be the sole top-level statement through the general block production. | Syntax completion | The authoritative §5.5 sample is unwrapped, while §5.2 independently requires block statements. |
+| D-004 | Allow inner shadowing; reject duplicate declarations only in the same scope. | Scope completion | The manual names same-scope redeclaration and nested visibility. |
+| D-106 | Support `//` line comments only. | Lexer choice allowed by manual | §4.1 says single-line and/or block comments; one form is the minimum. |
+| D-107 | Require `bool` conditions and Boolean operands for logical operators. | Semantic completion | Avoids unsupported numeric truthiness and satisfies invalid-expression testing. |
+| D-111 | Allow operation-local mixed `int`/`float` promotion; restrict `%` to `int,int`. | Semantic completion | Preserves the manual's `5 + 3.2` example without inventing floating remainder. |
+| D-112 | Require exact-type assignment; provide no implicit assignment conversion or casts. | Semantic completion | The manual grants no widening/narrowing rule. |
+| D-113 | Require braced control bodies; also accept blocks as statements and permit empty block contents. Continue rejecting bare expression statements, numeric unary signs, and unparenthesized comparison chains. | Manual-derived syntax plus edge-case completion | §5.2 explicitly requires nested blocks. `{ }` adds no construct beyond a block and avoids an undocumented nonempty restriction. |
+| D-114 | Restrict print syntax to `print IDENTIFIER;`. | Minimal syntax boundary | Every manual print example uses exactly that form. |
+| D-115 | Use a three-way semantic distinction: declaration-initializer/contextual/incompatible-domain type mismatch, standalone-assignment incompatibility, and invalid operator signature. | Error taxonomy | Preserves the manual's initializer example as `Type mismatch` while making all six semantic categories independently testable. |
+| D-116 | Report independent errors but propagate an internal error type to suppress dependent cascades. | Diagnostic behavior | Clearer diagnostics without hiding separate occurrences. |
+| D-117 | Materialize Boolean values in TAC; no short-circuit language guarantee. | TAC completion | Manual requires logical TAC but no evaluation strategy; core expressions have no side-effecting calls/assignments. |
+| D-119 | Accept both `type name;` and `type name = expression;`; apply exact type compatibility and lower a valid initializer as expression TAC followed by a store. | Manual-derived compatibility | Manual §4.5 explicitly uses `bool b = 5 + 3.2;` as a semantic type-mismatch input, so the parser must accept the form. |
+| D-120 | Analyze an initializer before its new binding is visible, then insert a fresh declaration even if initializer analysis failed; never replace the first binding on redeclaration. | Scope/diagnostic completion | Matches declaration-point visibility, permits outer-binding lookup during shadow initialization, and prevents later undeclared cascades. |
+| D-121 | Use Bison's normal EOF acceptance and declare no custom `END` source token. | Parser boundary | EOF is parser control; the authoritative catalog remains exactly 32 source tokens. |
+
+Full rules and matrices are authoritative in `docs/LANGUAGE_SPEC.md`; formal syntax is authoritative in `docs/GRAMMAR.md`.
+
+## Finalized M1 build and test decisions
+
+| ID | Decision | Reason |
+| --- | --- | --- |
+| D-101 | Use readable C11 with Flex, Bison, GCC, and GNU Make. | Manual permits C/C++; the team instruction prefers C. |
+| D-105 | Use `.mc` as the primary test/example extension, accept `.txt`, and do not reject another readable supplied path solely by extension; retain tracked expected stdout/stderr/exit files, ephemeral routine actual output, and curated actual evidence. | The official pipeline shows `.txt / .mc`; extensions organize evidence rather than define grammar. |
+| D-109 | Pin Ubuntu 24.04 LTS on WSL 2 as the primary environment; do not claim native Windows support until separately validated. | Stable supported baseline compatible with the instructor guidance; exact plan in `docs/TOOLCHAIN.md`. |
+| D-110 | Use Flex `%option noyywrap` unless a later reviewed need justifies `libfl`. | Avoids an unnecessary platform link dependency. |
+| D-118 | Plan one-file CLI output with deterministic `AST:`/`TAC:` sections, diagnostics on stderr, and exit codes 0-4 by phase. | Enables reproducible tests and a simple live demo. |
+
+Exact conventions are in `docs/TEST_CONVENTIONS.md`.
+
+## Resolved ambiguity register
+
+| Prior ID | Question | Resolution |
+| --- | --- | --- |
+| P-001 | Declaration initializers | Supported as an optional declaration suffix because the manual's explicit type-mismatch example must reach semantics. |
+| P-002 | Print operand | Identifier only. The inherited `print 0;` sketch must be revised/reclassified later. |
+| P-003 | Mixed numeric behavior | Promote `int` within mixed numeric operations; exact-type assignments only. |
+| P-004 | `%` domain | `int,int -> int` only. |
+| P-005 | Numeric unary minus | Unsupported; use binary subtraction such as `0 - 5`. |
+| P-006 | Logical TAC | Materialized Boolean values; no short-circuit guarantee. |
+| P-007 | Diagnostic count | Report each independent occurrence; suppress dependent cascades. |
+| P-008 | CLI/output | One supplied source path; `.mc` primary and `.txt` accepted without extension enforcement; deterministic stdout, line-aware stderr, phase-specific exit status. |
+| P-009 | Blocks/statements | Blocks are statements and lexical scopes; empty blocks are accepted as an edge case; control bodies remain braced and bare expression statements remain unsupported. |
+| P-012 | Parser end-of-input | Use normal Bison EOF, not a declared custom `END` token. |
+| P-010 | Floating syntax | Decimal digits on both sides of one dot; no exponent/leading-dot/trailing-dot forms. |
+| P-011 | Semantic categories | Use the non-overlapping triggers in `docs/LANGUAGE_SPEC.md` §6. |
+
+## Decisions deferred to later milestones
+
+| ID | Status | Decision area | Why deferred |
+| --- | --- | --- | --- |
+| D-102 | Proposed for M2 | Exact AST C tagged-union/list representation and ownership APIs | Syntax node requirements are known; concrete C interfaces belong to AST implementation. |
+| D-103 | Proposed for M5 | Exact scope-record/symbol-list storage structure | Scope behavior is fixed, but data structure implementation belongs to the symbol-table milestone. |
+| D-104 | Proposed for M8 | Exact TAC instruction structure and final textual spelling | Determinism is fixed; representation belongs to TAC implementation. |
+
+Deferred decisions must not change the accepted language. Any actual language extension belongs to optional post-core work and requires explicit later approval.
+
+## Decision record template
+
+```text
+ID / date / status
+Decision:
+Manual basis:
+Alternatives considered:
+Reason:
+Consequences:
+Tests/docs affected:
+```
