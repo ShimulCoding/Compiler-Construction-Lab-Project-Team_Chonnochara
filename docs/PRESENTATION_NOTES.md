@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: M2 provides buildable AST/token-foundation evidence and deterministic AST output. No full compiler, TAC demo, slide deck, or screenshot evidence exists yet.
+Status: M3 provides a working mandatory lexer plus M2 AST/build evidence. No parser-to-AST pipeline, TAC demo, slide deck, or screenshot evidence exists yet.
 
 ## Core story
 
@@ -43,6 +43,17 @@ M1 contract summary for a future language slide:
 - Trace `a + b * 2`: the addition node owns an identifier on the left and a multiplication subtree on the right, preserving parser precedence without a parentheses node.
 - Show that every printed node includes `line=<n>` so later semantic diagnostics retain source context.
 - Run `make test` and explain the two results: generated Bison token-header validation and 15 direct AST tests plus golden printer comparison.
+
+## M3 lexer demonstration material
+
+- Show that `src/parser/parser.y` declares the 32 source tokens once and Flex includes the generated `parser.tab.h` rather than copying token numbers.
+- Trace `ifvalue`: the identifier rule matches seven characters while the `if` keyword matches two, so Flex longest match returns one identifier. Exact `if` is an equal-length tie won by the earlier keyword rule.
+- Trace `!==`: `!=` is the longest first match (`NE`), followed by `=` (`ASSIGN`). The compact operator fixture makes this observable.
+- Explain that exact floats require digits-dot-digits; `.5`, `5.`, and `1e10` produce `LEX_INVALID_TOKEN` instead of being accepted as extra literal forms.
+- Show a code-before-comment line and the LF/CRLF test producing the same later token lines through `%option yylineno`.
+- Demonstrate `@` on line 3 producing `lexical error at line 3 [LEX_INVALID_TOKEN]: invalid token '@'` and exit 1.
+- Clarify that `tests/support/lexer_driver.c` is only a temporary token display tool; the future compiler driver and Bison semantic values are separate milestones.
+- Current `make test` summary covers the token header, 15 AST tests/unchanged golden, and 10 lexer cases including the official sample.
 
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 

@@ -2,7 +2,7 @@
 
 Last implementation/test update: 21 July 2026.
 
-The M2 AST/token unit runner exists, but no source-language compiler exists. Therefore every inherited language case remains **Blocked** or merely **Partial coverage**; none has an actual compiler result. Do not change a language-case status to Pass because an AST constructed directly in C passed.
+The M3 runner now executes the production lexer through a test-only driver, while the complete parser/compiler still does not exist. Lexical cases below have actual results; syntax, semantic, TAC, and end-to-end cases remain blocked. Do not treat successful tokenization as successful parsing or compilation.
 
 ## Inherited template cases
 
@@ -14,7 +14,7 @@ The M2 AST/token unit runner exists, but no source-language compiler exists. The
 | TV-04 | Inherited if-else sketch | `tests/valid/if_else.md` | Contains `print 0;` | Not run: no compiler | Conflicts with finalized identifier-only print; revise/reclassify during fixture conversion |
 | TV-05 | Valid while | `tests/valid/while.md` | Clean loop; TAC unspecified | Not run: no compiler | Blocked |
 | TV-06 | Full valid sketch | `tests/valid/complete_program.md` | Clean declarations, loop, conditions, branches, print through TAC | Not run: no compiler | Blocked; candidate E2E seed |
-| TI-01 | Lexical error | `tests/invalid/lexical_error.md` | `Lexical Error: Invalid token '@'` | Not run: no lexer | Partial sketch; expected line missing |
+| TI-01 | Lexical error | `tests/invalid/lexical_error.md` | `Lexical Error: Invalid token '@'` | Inherited fenced sketch not executed directly; M3's isolated executable replacement passed with exact line/code/exit | Superseded as runnable evidence by LEX-05; retain sketch for provenance |
 | TI-02 | Syntax errors/recovery | `tests/invalid/syntax_error.md` | Missing `;` and missing `)` diagnostics | Not run: no parser | Partial sketch; combined/cascade-prone |
 | TI-03 | Undeclared variable | `tests/invalid/undeclared_variable.md` | One diagnostic for each of its two independent undeclared `y` occurrences | Not run: no semantics | Partial sketch; reduce to one occurrence or expect two diagnostics during conversion |
 | TI-04 | Redeclaration | `tests/invalid/redeclaration.md` | Same-scope redeclaration of `count` | Not run: no semantics | Partial sketch |
@@ -29,13 +29,13 @@ The M2 AST/token unit runner exists, but no source-language compiler exists. The
 | Planned ID | Category / input focus | Expected evidence | Actual result | Status |
 | --- | --- | --- | --- | --- |
 | E2E-01 | Non-trivial all-phase valid program | Initialized/uninitialized declarations, standalone nested scope, stable AST, and TAC with temporaries, labels, jumps, and print; exit 0 | Not created | Missing |
-| LEX-01 | All keywords, literals, delimiters, and single-character operators | Correct tokenization and line tracking | Not created | Missing |
-| LEX-02 | Identifier boundaries and keyword prefixes | Longest-match identifiers vs keywords | Not created | Missing |
-| LEX-03 | `<`/`<=`, `>`/`>=`, `!`/`!=`, `=`/`==`, `&&`, and `\|\|` adjacency | Related single/multi-character operators are distinguished atomically | Not created | Missing |
-| LEX-04 | Supported `//` comments and whitespace | Discarded with correct later line numbers | Not created | Missing |
-| LEX-05 | Invalid character/malformed token | Line-aware lexical diagnostic; nonzero exit | Not created | Missing |
-| LEX-06 | Integer/float boundaries and malformed numbers | Contract-defined forms accepted; invalid forms diagnosed without misleading splits | Not created | Missing |
-| LEX-07 | Unsupported `/* ... */` text | Must not be accepted as a comment | Not created | Missing |
+| LEX-01 | All keywords, literals, delimiters, and single-character operators | Correct tokenization and line tracking | `all_tokens.mc` returned every one of the 32 token kinds with expected lines/lexemes | Pass (M3 lexer) |
+| LEX-02 | Identifier boundaries and keyword prefixes | Longest-match identifiers vs keywords | `_name`, `value2`, `integer`, `Int`, `ifvalue`, `while2`, and `trueValue` were identifiers while exact lowercase keywords retained keyword tokens | Pass (M3 lexer) |
+| LEX-03 | `<`/`<=`, `>`/`>=`, `!`/`!=`, `=`/`==`, `&&`, and `\|\|` adjacency | Related single/multi-character operators are distinguished atomically | Compact `=== !== <<= >>= !!= &&\|\|` matched the reviewed token golden | Pass (M3 lexer) |
+| LEX-04 | Supported `//` comments and whitespace | Discarded with correct later line numbers | Spaces/tabs/blank lines, code-before-comment, and full-line comments passed for LF and generated CRLF copies | Pass (M3 lexer) |
+| LEX-05 | Invalid character/malformed token | Line-aware lexical diagnostic; nonzero exit | `@` after a comment/blank line produced exact `LEX_INVALID_TOKEN` at line 3 and exit 1 | Pass (M3 lexer) |
+| LEX-06 | Integer/float boundaries and malformed numbers | Contract-defined forms accepted; invalid forms diagnosed without misleading splits | `0`, `42`, `3.14`, `0.5` passed; `.5`, `5.`, and `1e10` each produced one exact lexical diagnostic and exit 1 | Pass (M3 lexer) |
+| LEX-07 | Unsupported `/* ... */` text | Must not be accepted as a comment | `/* block */` was not discarded; it emitted `SLASH STAR IDENTIFIER STAR SLASH` for later syntax rejection | Pass (M3 lexer boundary) |
 | SYN-01 | Each statement form, both declaration forms, and standalone/nested/empty blocks | Correct AST shapes; every block is a scope and initializer is an optional declaration child | Not created | Missing |
 | SYN-02 | Arithmetic/relational/logical precedence and associativity | Golden AST proves grouping | Not created | Missing |
 | SYN-03 | Isolated missing semicolon | One stable line-aware syntax diagnostic | Not created | Missing |
@@ -103,6 +103,21 @@ Environment: Ubuntu 24.04.4 LTS on WSL2; GCC 13.3.0, GNU Make 4.3, and Bison 3.8
 | M2-U09 | Recursive cleanup execution | A populated nested tree can be recursively destroyed without a crash | Cleanup execution test passed; no Valgrind/leak claim | Pass |
 | M2-V03 | Automated target | `make test` builds first, validates token header, runs AST tests, and returns 0 | 15/15 AST tests passed; runner printed two PASS summaries and exited 0 | Pass |
 | M2-V04 | Artifact hygiene/clean | Generated products stay ignored and `make clean` removes only `build/` | `/build/` is ignored; clean target exited 0 and was followed by a successful rebuild/test | Pass |
+
+## M3 lexer validation
+
+Environment: the same Ubuntu 24.04.4 LTS WSL2 toolchain, including Flex 2.6.4, Bison 3.8.2, and GCC 13.3.0.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M3-V01 | Clean generation/build | Bison header precedes Flex generation; generated scanner compiles with C11 warning flags and no `libfl` | `make clean` then `make` generated `parser.tab.h`/`lex.yy.c` under `build/` and linked `lexer_test` with no actionable warning or `-lfl` | Pass |
+| M3-V02 | Token-authority accounting | Parser declarations, lexer returns, test display map, and all-token golden contain the same 32 source kinds; no custom `END` | Automated set comparison reported 32/32 in all four locations and no `END` | Pass |
+| M3-L01 | Complete token/boundary stream | All token families plus keyword-prefixed identifiers match stable output | `all_tokens` and `operator_adjacency` passed byte-for-byte | Pass |
+| M3-L02 | Layout/comments/locations | Ignored text emits no token and later lines remain correct under LF and CRLF | LF fixture and generated CRLF copy produced identical reviewed output; code-before-comment and full-line comment both passed | Pass |
+| M3-L03 | Official Section 5.5 sample | Complete sample tokenizes through normal EOF with correct lines | `official_sample` matched its token golden and exited 0 | Pass |
+| M3-L04 | Invalid input | Generic invalid character and three unsupported numeric spellings produce deterministic first-error output | Four isolated fixtures matched exact stderr/exit-1 goldens | Pass |
+| M3-L05 | Unsupported block comment | Scanner does not silently add block-comment support | Compact block-comment spelling emitted operator/content tokens rather than disappearing | Pass |
+| M3-V03 | Automated/regression target | New lexer tests and every M2 test pass together | `make test` reported generated-header PASS, AST/golden PASS, and 10 lexer cases PASS; AST binary remains 15/15 | Pass |
 
 ## Audit commands and results
 

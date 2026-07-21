@@ -1,6 +1,6 @@
 # Test, Input, and Output Conventions
 
-Status: **M1 conventions approved. M2 provides a unit-test runner and ignored routine results for the AST/token foundation; executable language fixtures and the compiler driver do not yet exist.**
+Status: **M1 conventions approved. M3 expands the M2 runner with executable lexer fixtures and deterministic token/diagnostic goldens; the complete parser and compiler driver do not yet exist.**
 
 These conventions make later phase tests deterministic while satisfying the manual's expected/actual-output requirement.
 
@@ -19,6 +19,14 @@ The minimal planned command is:
 - Identifiers remain ASCII as defined in `docs/LANGUAGE_SPEC.md`.
 - Both LF and CRLF input line endings must be accepted; golden output uses LF.
 - Standard input, multiple source files, interactive mode, and extra CLI flags are not part of the M1 interface.
+
+M3 also provides this temporary phase-test command:
+
+```text
+./build/lexer_test <source-file>
+```
+
+It is not the final compiler driver. On valid input it prints one deterministic token line at a time, including `line=<n>` and identifier/numeric lexemes. On invalid input the production scanner writes one `LEX_INVALID_TOKEN` diagnostic; the test driver stops at that first error and exits 1. Usage/I/O failures exit 2. Physical EOF is not printed as a source token.
 
 ## 2. Successful output
 
@@ -140,7 +148,7 @@ Case basenames must be unique across the suite. Suggested form is `<phase>_<feat
 
 ## 8. Automated command contract
 
-M2 establishes:
+M2 established and M3 expands:
 
 ```text
 make
@@ -148,8 +156,9 @@ make test
 make clean
 ```
 
-- At M2, `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST unit tests, compares deterministic AST stdout with a tracked golden file, prints a concise pass/fail summary, and returns nonzero on failure. Language fixture/exit-code checks are added as the compiler phases become executable.
-- The POSIX test runner quotes all paths because the current Windows-mounted repository path contains spaces and normalizes a tracked CRLF golden before comparison.
+- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests with the unchanged AST golden, then runs 10 lexer cases with exact token/diagnostic/exit checks.
+- The lexer cases cover all 32 tokens, identifier/keyword boundaries, compact longest-match operators, whitespace, blank lines, code-before-comment and full-line comments, LF and generated CRLF input, the official sample, unsupported block-comment behavior, invalid characters, and malformed numeric spellings.
+- The POSIX test runner quotes paths because the Windows-mounted repository path contains spaces, normalizes tracked CRLF-sensitive goldens, and creates temporary CRLF input only under ignored `build/test-results/`.
 - `make clean` removes only generated content under `build/`; it never deletes tracked expected or curated actual evidence.
 
-Verified M2 command: `make clean`, `make`, and `make test` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because only the AST/token/build foundation exists.
+Verified M3 commands: `make clean`, `make`, and `make test` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because the complete parser and later phases do not yet exist.

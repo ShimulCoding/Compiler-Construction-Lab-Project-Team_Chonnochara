@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1 decisions are approved and committed. M2 implementation decisions below are validated, reviewed, and approved as Nayem's milestone.
+Status: M1-M2 decisions are approved and committed. M3 decisions below are validated, reviewed, and approved as Dipro's milestone.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -59,6 +59,18 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-206 | Print a deterministic two-space-indented tree with source lines and labeled structural edges; represent an empty statement list as `<empty>`. | Produces readable presentation output and a stable byte-comparable test oracle without adding Graphviz. |
 | D-207 | Keep all 32 token declarations in the minimal `src/parser/parser.y`; generate the shared Bison header before any future lexer compilation. The current one-token placeholder production is not the language parser. | Establishes one token-number authority now, satisfies the M2 roadmap, and avoids duplicating token enums in Flex/C. M4 replaces the placeholder production with the approved CFG. |
 | D-208 | Build only existing M2 artifacts and place every generated object, executable, Bison output, and routine test result under ignored `build/`. | Makes `make`, `make test`, and `make clean` truthful while avoiding fake rules for missing compiler phases. |
+
+## M3 lexer decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-301 | Use a simple non-reentrant Flex scanner with `%option noyywrap yylineno noinput nounput never-interactive nodefault`. | Matches the one-file compiler workflow, avoids `libfl` and unused generated helpers, and gives understandable line tracking without scanner-state machinery. |
+| D-302 | Keep `src/parser/parser.y` as the sole 32-token authority. The lexer includes its generated header, returns those constants, returns normal `YYEOF`, and uses only built-in `YYUNDEF` as the invalid-input marker. | Prevents token-number drift and adds no source token or custom `END`. |
+| D-303 | Expose the current line as `SourceLocation` and expose `yytext` only through a borrowed accessor valid until the next `yylex()` call. Defer copied/converted Bison semantic values and `%locations` assignments to M4. | Tests can validate lexemes and lines now without inventing a premature semantic union; future parser actions receive a clear ownership boundary. |
+| D-304 | Report one stable `LEX_INVALID_TOKEN` diagnostic per invalid scanner match. The M3 test driver stops after the first such result and exits 1. | Produces a simple deterministic oracle while preserving `YYUNDEF` for later parser recovery/phase-gate integration. |
+| D-305 | Support only `//` comments. A `/* ... */` spelling is not discarded and is emitted as its individually valid slash/star/identifier tokens for later syntax rejection. | Does not add the unsupported block-comment feature or mislabel valid operator characters as an unmatchable token. |
+| D-306 | Keep the 32-name display switch in `tests/support/lexer_driver.c` only; it maps generated Bison constants for golden output and is not a production token definition. | Provides deterministic phase tests while the complete parser/driver do not exist; static validation checks it against the parser catalog. |
+| D-307 | During M4, distinguish an already-reported lexical failure from an independent syntax error. If `YYUNDEF` represents the same token for which the lexer emitted `LEX_INVALID_TOKEN`, parser/compiler integration must not emit a duplicate generic syntax diagnostic for that root cause. | Preserves one clear primary diagnostic while still allowing genuinely independent syntax errors to be reported. This is an M4 integration contract, not M3 parser implementation. |
 
 ## Resolved ambiguity register
 

@@ -1,6 +1,6 @@
 # Development and Contribution Roadmap
 
-Status: M1 is committed and pushed. The toolchain gate passed. M2 is completed, validated, and approved as Nayem's milestone. Dipro is next; M3 has not started and must await instruction.
+Status: M1 and M2 are committed and pushed. M3 is completed, validated, and approved as Dipro's milestone. Mehedi is next; M4 has not started and must await instruction.
 
 The initialization documents were incorporated into Shimul's coherent M1 foundation milestone. This consumes Shimul's current turn and advances the intended contribution cycle to Nayem without changing the existing M2-M16 ownership sequence.
 

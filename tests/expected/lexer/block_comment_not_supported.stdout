@@ -1,0 +1,5 @@
+SLASH(line=1)
+STAR(line=1)
+IDENTIFIER(line=1, lexeme=block)
+STAR(line=1)
+SLASH(line=1)

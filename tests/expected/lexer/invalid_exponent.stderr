@@ -1,0 +1,1 @@
+lexical error at line 1 [LEX_INVALID_TOKEN]: unsupported numeric literal '1e10'

@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: M2 AST/build notes now name the implemented interfaces. Every member must understand the complete project, not only their attributed commits.
+Status: M3 lexer and M2 AST/build notes name the implemented interfaces. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -23,6 +23,42 @@ Tokens are a flat sequence such as `IDENTIFIER ASSIGN INTEGER PLUS ...`. The AST
 ### Why attach line numbers to AST nodes?
 
 Semantic errors are discovered after parsing. The analyzer still needs the original source location to report where an undeclared use, bad assignment, or invalid operator occurred.
+
+### How is the M3 lexer organized?
+
+`src/lexer/lexer.l` is the production Flex specification. It includes Bison's generated `parser.tab.h`, returns those token constants, discards documented layout/comments, and reports invalid input. `src/lexer/lexer.h` exposes input reset, current `SourceLocation`, the current borrowed lexeme, and error count. `tests/support/lexer_driver.c` is test-only and converts returned constants to deterministic readable lines.
+
+### Token, lexeme, and pattern—what is the difference?
+
+A pattern is the Flex regular expression, such as `[A-Za-z_][A-Za-z0-9_]*`. A lexeme is the actual matched text, such as `value2`. A token is the category returned to Bison, such as `IDENTIFIER`.
+
+### How does Flex choose a rule?
+
+Flex first chooses the rule matching the most input characters. Rule order matters only when the longest lengths tie. Thus `ifvalue` is one identifier because seven characters beat the two-character `if` match, while exact `if` is a tie won by the earlier keyword rule. Similarly `!=` beats `!`, and `//...` beats `/`.
+
+### What numeric forms does the lexer accept?
+
+Integers use `[0-9]+`; floats use `[0-9]+\.[0-9]+`. A float match is longer than its integer prefix. Explicit rules diagnose `.5`, `5.`, and exponent spelling such as `1e10`; numeric unary signs remain separate operator tokens and are not part of literals.
+
+### How are whitespace, comments, and lines handled?
+
+Spaces, tabs, and carriage returns are discarded. Newline is discarded as a token, but `%option yylineno` increments the scanner line. In CRLF, `\r` is ignored and `\n` increments once. `//` consumes comment text but not its line ending, so the next token receives the correct line. Block comments are deliberately unsupported.
+
+### How are lexical errors handled?
+
+An unmatched character or explicit unsupported numeric form prints `lexical error at line <n> [LEX_INVALID_TOKEN]: ...`, increments the scanner error count, and returns Bison's built-in `YYUNDEF`. The M3 test driver stops at the first error and exits 1 for deterministic tests. This is not a custom source-language token.
+
+### Who owns `yytext`?
+
+Flex owns and reuses the `yytext` buffer. `lexer_current_lexeme()` therefore returns a borrowed pointer valid only until the next `yylex()` call. The test driver prints it immediately. M4 must copy identifier text or convert literal text before requesting another token, then attach appropriate Bison destructors.
+
+### How does the lexer end input and integrate with Bison?
+
+Physical EOF makes `yylex()` return `0`/`YYEOF`; no custom `END` exists. Make generates `parser.tab.h` from the current 32 `%token` declarations before Flex generates `lex.yy.c`. M4 replaces only the placeholder grammar and adds semantic/location assignments while preserving this token authority.
+
+### What do the M3 tests prove?
+
+Ten cases cover all 32 token kinds, keyword-prefix identifiers, compact overlapping operators, exact numeric forms, layout/comments, LF/CRLF lines, the official sample, unsupported block-comment behavior, an invalid character, and malformed numbers. They prove tokenization only—not parsing, AST construction from source, semantic validity, or TAC.
 
 ### How is the M2 AST represented?
 
@@ -50,7 +86,7 @@ Both use `AST_NODE_IF`. The condition and then-block are required; `else_block =
 
 ### How does the M2 Makefile prepare Flex/Bison integration?
 
-`src/parser/parser.y` currently contains only the 32 `%token` declarations and a clearly labeled placeholder production. Bison writes `build/generated/parser.tab.h`; the token-interface C test includes that generated header. M3 will make Flex include the same header, and M4 will replace the placeholder production with the approved CFG and AST actions. Token numbers are not copied into a separate lexer enum.
+`src/parser/parser.y` currently contains only the 32 `%token` declarations and a clearly labeled placeholder production. Bison writes `build/generated/parser.tab.h`; both the token-interface test and M3 Flex scanner include that generated header. M4 will replace the placeholder production with the approved CFG and AST actions. Token numbers are not copied into a separate production lexer enum.
 
 ### What do the M2 tests prove and not prove?
 

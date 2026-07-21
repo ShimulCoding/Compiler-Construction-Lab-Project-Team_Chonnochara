@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Status: **M2 AST/build foundation implemented and tested; lexer, complete parser, symbol table, semantic analyzer, TAC generator, and driver remain unimplemented.**
+Status: **M3 lexer plus the M2 AST/build foundation are implemented and tested; the complete parser, symbol table, semantic analyzer, TAC generator, and compiler driver remain unimplemented.**
 
 ## Implemented M2 foundation
 
@@ -11,6 +11,15 @@ Status: **M2 AST/build foundation implemented and tested; lexer, complete parser
 - `src/ast/ast_print.c` implements deterministic two-space-indented tree output with a line on every node.
 - `src/parser/parser.y` is deliberately only the M2 32-token interface. Bison generates `build/generated/parser.tab.h` for future Flex use; no complete parser is claimed.
 - `Makefile` builds the two M2 test executables, generates the token header, runs `tests/run_tests.sh`, and confines generated output to ignored `build/`.
+
+## Implemented M3 lexer
+
+- `src/lexer/lexer.l` recognizes exactly the 32 Bison-defined source tokens and returns normal Bison EOF at physical end-of-input.
+- `src/lexer/lexer.h` exposes scanner input reset, current line as `SourceLocation`, the current temporary lexeme, and the lexical-error count.
+- Keywords precede the identifier rule for equal-length ties; Flex longest match preserves keyword-prefixed identifiers, floats, comments, and multi-character operators.
+- Spaces, tabs, carriage returns, newlines, and `//` comments are discarded; `%option yylineno` counts LF once for both LF and CRLF files.
+- Invalid characters and explicitly unsupported leading-dot, trailing-dot, and exponent numeric forms produce one deterministic `LEX_INVALID_TOKEN` diagnostic and Bison's built-in `YYUNDEF` marker.
+- `tests/support/lexer_driver.c` is a test-only token display program. It uses the generated constants, prints stable line/lexeme information, and stops after the first lexical error.
 
 ## Required pipeline
 
@@ -109,6 +118,8 @@ Important integration rules:
 - Dynamically allocated identifier/text values need one documented owner and destructor path.
 - Prefer Flex `%option noyywrap` unless the build deliberately documents and provides the `libfl` runtime dependency.
 - At physical end-of-input, the lexer returns Bison's normal EOF value (`0`/`YYEOF`); it does not return a project-defined `END` token.
+
+Implemented M3 details: the scanner is intentionally non-reentrant and exposes `lexer_current_location()` for the line-only M2 location type. `lexer_current_lexeme()` is borrowed Flex storage and remains valid only until the next `yylex()` call. The M4 parser milestone must copy identifier text or convert literal text while it is current, add Bison semantic/location assignments, and define matching destructors; M3 does not invent a premature `%union`.
 
 ### Parser (`src/parser/`)
 
@@ -231,11 +242,11 @@ Tests should verify diagnostic phase, line, essential wording, and exit status w
 The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Git worktree while WSL compiles/tests the same checkout through `/mnt/e`; native Windows compilation remains unsupported. The implemented Makefile provides:
 
 ```text
-make          build the AST tests and Bison token-header validation executable
-make test     run the M2 automated tests and golden AST comparison
+make          build AST/token tests plus the generated Flex lexer test executable
+make test     run M2 regressions and the M3 lexer/golden suite
 make clean    remove only the generated build/ directory
 ```
 
-The current generated dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> token interface test`. M3 adds `parser.tab.h -> lexer C`; M4 completes `parser.y`, and later milestones add compiler objects/executable without duplicating token definitions. The quoted-path-safe POSIX runner propagates failures to Make and normalizes CRLF in the tracked golden before byte comparison.
+The implemented dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> lexer object/test executable`. M4 completes `parser.y`, and later milestones add compiler objects/executable without duplicating token definitions. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and generates a temporary CRLF source under `build/test-results/` to validate line handling without tracking generated input.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.

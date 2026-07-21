@@ -71,6 +71,25 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Result:** C11 compilation and Bison generation completed with no warnings. The generated-header test and 15 AST tests passed, including official-sample-shaped golden printer comparison and recursive cleanup execution. No leak detector was installed/run, so no memory-leak claim is made.
 - **Git handling:** Approved for one local Nayem-owned commit with message `Nayem: Established the C11 build and AST foundation`; pushing remains prohibited until separately approved.
 
+## 21 July 2026 — M3 mandatory lexical analyzer
+
+- **Contributor/owner:** Dipro; reviewed and explicitly approved as the M3 owner.
+- **Task:** Implement only the complete mandatory Flex scanner, generated Bison-token integration, deterministic invalid-token behavior, focused lexer fixtures/goldens, and M2 regression integration.
+- **Files implemented:** `src/lexer/lexer.l`, `src/lexer/lexer.h`, `tests/support/lexer_driver.c`, lexer sources under `tests/lexer/`, and token/diagnostic goldens under `tests/expected/lexer/`.
+- **Supporting changes:** Incremental `Makefile`/`tests/run_tests.sh` rules plus concise project-state, architecture, decisions, testing, report, presentation, viva, and requirement-traceability updates.
+- **Implemented:**
+  - all 32 token kinds from the generated Bison header, with no custom `END` or duplicate production enum;
+  - lowercase keywords, ASCII identifiers, exact integer/float forms, every operator/delimiter, and longest-match boundaries;
+  - LF/CRLF-aware line tracking, spaces/tabs/newlines, and `//` comment removal without block-comment support;
+  - line-aware `LEX_INVALID_TOKEN` diagnostics for unmatched characters and unsupported leading-dot, trailing-dot, and exponent numbers;
+  - a borrowed current-lexeme/current-location API and a separate test-only token display driver that stops on the first lexical error;
+  - Bison-header-before-Flex generation and warning-clean C11 compilation under existing targets.
+- **Why:** M4 requires a tested character-to-token boundary before implementing the complete CFG and AST-building parser actions.
+- **Technical decisions:** Return Bison's built-in `YYUNDEF` after lexical diagnostics; leave copied/converted semantic values and Bison locations to M4; use Flex rule order only for equal-length keyword/identifier ties and longest match for longer identifiers/comments/operators/floats.
+- **Tests/commands:** WSL `make clean`, `make`, `make test`, direct static token-set comparison, Bash syntax validation, and Windows Git whitespace/scope inspection.
+- **Result:** Bison, Flex, and GCC completed without actionable warnings. The generated-header check, all 15 AST tests, unchanged AST golden, and 10 lexer cases passed, including all token families, keyword prefixes, compact overlapping operators, LF/CRLF/comments, the official sample, block-comment non-support, invalid characters, and malformed numeric diagnostics.
+- **Git handling:** Approved for one local Dipro-owned commit with message `Dipro: Implemented lexical analysis for the required language tokens`; pushing remains prohibited until separately approved.
+
 ## Entry template
 
 ### YYYY-MM-DD — Milestone title

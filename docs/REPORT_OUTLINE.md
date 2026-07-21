@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1 language/grammar and M2 AST/build evidence are prepared; later compiler-phase and end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1 language/grammar, M2 AST/build, and M3 lexer evidence are prepared; later compiler-phase and end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -52,13 +52,17 @@ Evidence needed: implemented `ARCHITECTURE.md`, exact filenames/functions, final
 
 ## 5. Lexer Design
 
-- Token catalog and Flex regular expressions
-- Keyword versus identifier handling
-- Integer/float longest-match behavior
-- Multi-character operators
-- whitespace/comments and line tracking
-- line-comment/location handling and invalid-token diagnostics
-- focused tests
+- Implemented files: `src/lexer/lexer.l` and `lexer.h`; test-only `tests/support/lexer_driver.c`
+- One 32-token authority generated from `src/parser/parser.y`; normal EOF and built-in `YYUNDEF` are not source tokens
+- Identifier `[A-Za-z_][A-Za-z0-9_]*`, integer `[0-9]+`, and float `[0-9]+\.[0-9]+` rules
+- Keyword-before-identifier equal-length ties and Flex longest match for prefixes, floats, comments, and multi-character operators
+- `%option noyywrap yylineno noinput nounput never-interactive nodefault`; no `libfl` dependency
+- spaces/tabs/CR/newline handling, `//` comments only, and line-only `SourceLocation` access for LF/CRLF
+- deterministic first-error `LEX_INVALID_TOKEN` behavior for unmatched input and unsupported numeric forms
+- borrowed `yytext` lifetime at M3; copied/converted Bison semantic values deferred explicitly to M4
+- 10 golden lexer cases covering every source token, compact operator overlap, the official sample, layout/comments/locations, malformed numeric forms, invalid input, and block-comment non-support
+
+M3 evidence: Bison-header-before-Flex build under C11 warning flags, automated 32-token set equality, exact stdout/stderr/exit goldens, and full M2 regression success.
 
 ## 6. Parser Design
 
