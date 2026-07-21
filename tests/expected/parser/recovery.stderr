@@ -1,0 +1,2 @@
+syntax error at line 1 [SYN_UNEXPECTED_TOKEN]: unexpected ;, expecting identifier
+syntax error at line 3 [SYN_UNEXPECTED_TOKEN]: unexpected ;

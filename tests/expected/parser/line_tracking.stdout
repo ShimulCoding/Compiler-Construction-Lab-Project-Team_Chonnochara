@@ -1,0 +1,5 @@
+Program(line=3)
+  Declaration(line=3, type=int, name=value)
+  Assignment(line=5, name=value)
+    Value
+      IntegerLiteral(line=5, value=1)

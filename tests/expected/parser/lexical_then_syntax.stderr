@@ -1,0 +1,2 @@
+lexical error at line 1 [LEX_INVALID_TOKEN]: invalid token '@'
+syntax error at line 3 [SYN_UNEXPECTED_TOKEN]: unexpected ;

@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "common/source_location.h"
 
@@ -15,5 +16,6 @@ SourceLocation lexer_current_location(void);
 const char *lexer_current_lexeme(void);
 
 size_t lexer_error_count(void);
+bool lexer_had_internal_error(void);
 
 #endif

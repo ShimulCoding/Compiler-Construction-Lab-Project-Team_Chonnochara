@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1 language/grammar, M2 AST/build, and M3 lexer evidence are prepared; later compiler-phase and end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1 language/grammar, M2 AST/build, M3 lexer, and uncommitted M4 parser evidence are prepared; later semantic/TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -38,7 +38,7 @@ Evidence needed: final repository state and concise pipeline figure.
 - Manual-derived support for standalone/empty nested blocks and optional declaration initializers, plus explicit resolutions for print operand, numeric conversion, `%`, unary operations, condition types, empty-program/bare-expression forms, exact floating-literal spellings, equality compatibility, normal Bison EOF, source-path conventions, and the semantic-error taxonomy
 - One valid and one invalid example
 
-M1 evidence prepared: `docs/LANGUAGE_SPEC.md` and `docs/GRAMMAR.md`. Still needed: implemented lexer/parser evidence, generated parser conflict result, and executable tests.
+Evidence prepared: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, the implemented lexer/parser sources, zero-conflict Bison generation, and executable lexical/syntax/AST tests. Semantic/TAC evidence remains later.
 
 ## 4. Compiler Architecture
 
@@ -59,21 +59,25 @@ Evidence needed: implemented `ARCHITECTURE.md`, exact filenames/functions, final
 - `%option noyywrap yylineno noinput nounput never-interactive nodefault`; no `libfl` dependency
 - spaces/tabs/CR/newline handling, `//` comments only, and line-only `SourceLocation` access for LF/CRLF
 - deterministic first-error `LEX_INVALID_TOKEN` behavior for unmatched input and unsupported numeric forms
-- borrowed `yytext` lifetime at M3; copied/converted Bison semantic values deferred explicitly to M4
+- borrowed `yytext` lifetime for immediate lexer display; M4 copies identifier values and converts numeric values before the next token
 - 10 golden lexer cases covering every source token, compact operator overlap, the official sample, layout/comments/locations, malformed numeric forms, invalid input, and block-comment non-support
 
 M3 evidence: Bison-header-before-Flex build under C11 warning flags, automated 32-token set equality, exact stdout/stderr/exit goldens, and full M2 regression success.
 
 ## 6. Parser Design
 
-- CFG implementation in Bison
-- semantic values and source locations
-- precedence/associativity and dangling-else strategy
-- normal Bison EOF acceptance without a custom source token
-- AST-building actions
-- basic `error`-token recovery and synchronization
-- parser conflicts/warnings and how resolved
-- focused tests
+- Implemented files: complete `src/parser/parser.y`, public `parser.h`, and test-only `tests/support/parser_driver.c`
+- `%union` strategy: AST nodes, temporary statement lists, copied identifier text, numeric values, source types, and binary-operator tags only
+- Flex-to-Bison location flow using `yylineno`/`YYLTYPE`, then line-only `SourceLocation` on every constructed AST node
+- structural precedence/associativity through the documented nonterminal tiers; braced control bodies eliminate dangling `else`
+- normal Bison EOF acceptance without a custom source token; exactly 32 source tokens remain
+- AST actions for every statement/expression/literal form, including optional declaration initializers and empty/nested blocks
+- explicit ownership transfer plus `%destructor` cleanup for discarded strings, nodes, and temporary lists
+- stable `SYN_UNEXPECTED_TOKEN` diagnostics, recovery at semicolon/closing brace, and suppression of a duplicate syntax callback for lexer-reported `YYUNDEF`
+- zero shift/reduce and reduce/reduce conflicts under Bison 3.8.2 with conflict warnings promoted to errors
+- 32 parser cases: all operators/forms, seven AST goldens, official sample, LF/CRLF, required syntax rejections, both recovery boundaries, and lexical/syntax integration
+
+M4 limitation: these tests prove syntax and AST construction, not semantic correctness, TAC, a final driver, or leak freedom.
 
 ## 7. Abstract Syntax Tree
 

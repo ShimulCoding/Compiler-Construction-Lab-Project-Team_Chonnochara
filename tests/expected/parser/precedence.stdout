@@ -1,0 +1,45 @@
+Program(line=1)
+  Declaration(line=1, type=bool, name=result)
+    Initializer
+      BinaryExpression(line=1, operator="||")
+        Left
+          UnaryExpression(line=1, operator="!")
+            Operand
+              BinaryExpression(line=1, operator="<")
+                Left
+                  BinaryExpression(line=1, operator="+")
+                    Left
+                      Identifier(line=1, name=a)
+                    Right
+                      BinaryExpression(line=1, operator="*")
+                        Left
+                          Identifier(line=1, name=b)
+                        Right
+                          Identifier(line=1, name=c)
+                Right
+                  Identifier(line=1, name=d)
+        Right
+          BinaryExpression(line=1, operator="&&")
+            Left
+              BinaryExpression(line=1, operator="==")
+                Left
+                  Identifier(line=1, name=e)
+                Right
+                  Identifier(line=1, name=f)
+            Right
+              BinaryExpression(line=1, operator="!=")
+                Left
+                  Identifier(line=1, name=g)
+                Right
+                  Identifier(line=1, name=h)
+  Declaration(line=2, type=int, name=grouped)
+    Initializer
+      BinaryExpression(line=2, operator="*")
+        Left
+          BinaryExpression(line=2, operator="+")
+            Left
+              Identifier(line=2, name=a)
+            Right
+              Identifier(line=2, name=b)
+        Right
+          Identifier(line=2, name=c)

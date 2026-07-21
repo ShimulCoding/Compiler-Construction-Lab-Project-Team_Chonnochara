@@ -1,0 +1,17 @@
+Program(line=1)
+  While(line=1)
+    Condition
+      BinaryExpression(line=1, operator=">")
+        Left
+          Identifier(line=1, name=count)
+        Right
+          IntegerLiteral(line=1, value=0)
+    Body
+      Block(line=1)
+        Assignment(line=2, name=count)
+          Value
+            BinaryExpression(line=2, operator="-")
+              Left
+                Identifier(line=2, name=count)
+              Right
+                IntegerLiteral(line=2, value=1)

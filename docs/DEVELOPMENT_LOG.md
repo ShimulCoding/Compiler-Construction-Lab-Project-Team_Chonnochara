@@ -88,7 +88,26 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Technical decisions:** Return Bison's built-in `YYUNDEF` after lexical diagnostics; leave copied/converted semantic values and Bison locations to M4; use Flex rule order only for equal-length keyword/identifier ties and longest match for longer identifiers/comments/operators/floats.
 - **Tests/commands:** WSL `make clean`, `make`, `make test`, direct static token-set comparison, Bash syntax validation, and Windows Git whitespace/scope inspection.
 - **Result:** Bison, Flex, and GCC completed without actionable warnings. The generated-header check, all 15 AST tests, unchanged AST golden, and 10 lexer cases passed, including all token families, keyword prefixes, compact overlapping operators, LF/CRLF/comments, the official sample, block-comment non-support, invalid characters, and malformed numeric diagnostics.
-- **Git handling:** Approved for one local Dipro-owned commit with message `Dipro: Implemented lexical analysis for the required language tokens`; pushing remains prohibited until separately approved.
+- **Git handling:** Committed and pushed as `084a3df7a77071bd36fff31963d513be1221b0dd` with message `Dipro: Implemented lexical analysis for the required language tokens` after separate approvals.
+
+## 21 July 2026 — M4 syntax analyzer and AST construction
+
+- **Contributor/owner:** Mehedi; reviewed and explicitly approved as the M4 owner.
+- **Task:** Implement only the complete mandatory Bison grammar, typed lexer/parser values and locations, AST-building actions, basic recovery, deterministic syntax diagnostics, focused parser fixtures/goldens, and M2/M3 regressions.
+- **Files implemented:** Complete `src/parser/parser.y`; public `src/parser/parser.h`; test-only `tests/support/parser_driver.c`; parser fixtures under `tests/parser/`; and AST/diagnostic/exit goldens under `tests/expected/parser/`.
+- **Supporting changes:** Typed/location-aware updates to `src/lexer/lexer.l` and `lexer.h`, identifier-value cleanup in `tests/support/lexer_driver.c`, incremental `Makefile`/`tests/run_tests.sh` integration, and relevant project-memory updates.
+- **Implemented:**
+  - the approved nonempty-program CFG with both declaration forms, assignment, identifier print, standalone/empty/nested blocks, braced `if`/`if-else`/`while`, and the full layered expression grammar;
+  - copied identifier semantic values, converted integer/float values, default Bison line locations, and direct construction of the existing AST;
+  - parser-owned temporary statement lists plus `%destructor` cleanup for discarded strings, nodes, and lists;
+  - line-aware `SYN_UNEXPECTED_TOKEN` diagnostics and `error` recovery at semicolons and closing braces;
+  - suppression of the generic syntax diagnostic caused by an already-reported lexical `YYUNDEF`, without suppressing a later independent syntax error; and
+  - a test-only parser interface that prints deterministic AST output for valid syntax and uses status 1/2 for lexical/syntax failures.
+- **Why:** Semantic analysis and TAC require a grammar-validated AST produced from real source text rather than direct AST construction alone.
+- **Technical decisions:** Precedence/non-associativity remain structural rather than hidden by precedence directives; one Bison `%union` carries only syntax-stage values; AST constructors copy identifier text, after which parser token storage is freed; no custom `END`, symbol table, type checking, TAC, or final driver was introduced.
+- **Tests/commands:** WSL `make clean`, `make`, `make test`, `make clean`; Windows Git status/diff/static token and artifact inspection.
+- **Result:** Bison generated the grammar with zero shift/reduce and zero reduce/reduce conflicts; Flex/GCC emitted no actionable warnings. The header check, 15 AST tests/unchanged direct golden, 10 lexer cases, and 32 parser cases passed. Parser cases cover all 14 operators, every required statement form, the official sample, seven AST goldens, LF/generated-CRLF locations, required rejected forms, two recovery boundaries, and lexical/syntax diagnostic separation.
+- **Git handling:** Approved for one local Mehedi-owned commit with message `Mehedi: Implemented syntax analysis and AST construction`; no commit existed when this entry was finalized, and pushing remains prohibited until separately approved.
 
 ## Entry template
 

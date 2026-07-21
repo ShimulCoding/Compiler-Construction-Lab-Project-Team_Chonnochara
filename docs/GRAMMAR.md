@@ -1,6 +1,6 @@
 # Formal Context-Free Grammar
 
-Status: **M1 grammar approved and recorded; the full CFG is not yet implemented in Bison. M2's `src/parser/parser.y` is only the shared 32-token interface and placeholder production for later M4 completion.**
+Status: **M1 grammar approved and recorded; M4 implements this complete CFG in Bison with AST actions, line locations, basic recovery, and zero generated conflicts.**
 
 Authority: Section 5 of `Compiler Construction Lab Project Manual.pdf`, together with the manual's explicit semantic initializer example in §4.5. This grammar includes only manual-required/manual-derived forms plus documented consistency edge decisions such as allowing empty block contents. Semantic constraints are in `docs/LANGUAGE_SPEC.md`.
 
@@ -189,7 +189,7 @@ Every accepted production was checked against the official manual before inclusi
 - Every control body is a braced block, and `KW_ELSE` cannot begin a normal statement. The factored `<else-part>` therefore has no dangling-`else` ambiguity.
 - Parentheses enter through one primary production and explicitly restart the full expression grammar.
 
-The core grammar is structurally capable of zero Bison shift/reduce and zero reduce/reduce conflicts: it has no competing statement starters, dangling `else`, ambiguous declaration suffix, or nullable recursion cycle. An independent read-only M1 construction for this exact BNF produced 298 canonical LR(1) states and 85 merged LALR cores with zero shift/reduce or reduce/reduce conflicts. This is strong static evidence, but an actual Bison warning/counterexample report remains mandatory once the approved toolchain exists. Basic recovery rules will synchronize at semicolons or closing braces but will be documented as parser behavior, not as valid-language CFG.
+The core grammar has zero Bison shift/reduce and zero reduce/reduce conflicts: it has no competing statement starters, dangling `else`, ambiguous declaration suffix, or nullable recursion cycle. M1's independent construction produced 298 canonical LR(1) states and 85 merged LALR cores with zero conflicts. M4 then generated the implemented LALR parser using Bison 3.8.2 with `-Wall -Wcounterexamples -Werror=conflicts-sr -Werror=conflicts-rr`; generation completed without a conflict or actionable warning.
 
 ## 7. Manual-sample walkthrough
 
@@ -224,3 +224,16 @@ x = a < b < c;              // chained ordering unsupported
 ```
 
 Each input is rejected syntactically; none should be reinterpreted as an optional feature.
+
+## 10. Implemented Bison mapping and recovery
+
+`src/parser/parser.y` mirrors the strict BNF tiers directly. It does not use precedence declarations to repair an ambiguous expression grammar. Grammar actions construct the existing AST, so parentheses, braces, and semicolons influence structure/termination but do not become nodes. The parser accepts the completed `program` only through normal Bison EOF; the source catalog remains exactly 32 tokens.
+
+Two recovery productions are deliberately outside the valid-language BNF:
+
+```bison
+statement : error SEMICOLON
+block     : LBRACE error RBRACE
+```
+
+They discard a malformed statement/subtree up to a safe boundary and call `yyerrok`. A recovered item contributes no statement to the temporary list, and any recorded syntax error causes the parser wrapper to destroy the partial AST rather than pass it to semantic analysis. Tests demonstrate continued parsing after semicolon and closing-brace synchronization. The parser also suppresses the generic Bison callback caused solely by a lexer-reported `YYUNDEF`; a later independent syntax error is still reported.

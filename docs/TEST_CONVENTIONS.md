@@ -1,6 +1,6 @@
 # Test, Input, and Output Conventions
 
-Status: **M1 conventions approved. M3 expands the M2 runner with executable lexer fixtures and deterministic token/diagnostic goldens; the complete parser and compiler driver do not yet exist.**
+Status: **M1 conventions approved. M4 expands the M2/M3 runner with executable parser fixtures, parser-built AST goldens, deterministic diagnostics, and recovery evidence; the final compiler driver does not yet exist.**
 
 These conventions make later phase tests deterministic while satisfying the manual's expected/actual-output requirement.
 
@@ -27,6 +27,14 @@ M3 also provides this temporary phase-test command:
 ```
 
 It is not the final compiler driver. On valid input it prints one deterministic token line at a time, including `line=<n>` and identifier/numeric lexemes. On invalid input the production scanner writes one `LEX_INVALID_TOKEN` diagnostic; the test driver stops at that first error and exits 1. Usage/I/O failures exit 2. Physical EOF is not printed as a source token.
+
+M4 adds a second temporary phase-test command:
+
+```text
+./build/parser_test <source-file>
+```
+
+On syntactically valid input it prints the deterministic parser-built AST and exits 0. A lexical failure exits 1, a syntax failure exits 2, and usage/I/O/internal phase-test failure exits 4. Any lexical or syntax failure suppresses AST stdout and destroys the partial tree. This remains test infrastructure, not the final semantic/TAC compiler driver.
 
 ## 2. Successful output
 
@@ -71,7 +79,7 @@ semantic error at line 6 [SEM_UNDECLARED]: identifier 'y' is not declared
 | `3` | One or more semantic errors | No TAC; stdout remains empty |
 | `4` | Usage or source-file I/O error | No compiler phase runs |
 
-If a file contains errors from multiple phases, the earliest failed phase determines the exit status and later phases do not produce authoritative diagnostics. Parser recovery after a lexical marker is internal and must not add a misleading generic syntax error for the same lexeme.
+If a file contains errors from multiple phases, the earliest failed phase determines the exit status and later phases do not produce authoritative diagnostics. Parser recovery after a lexical marker does not add a misleading generic syntax error for the same lexeme. A genuinely independent later syntax error may still be reported, while the earlier lexical phase keeps exit status 1.
 
 Semantic analysis reports each independent occurrence while suppressing dependent cascades according to `docs/LANGUAGE_SPEC.md`.
 
@@ -148,7 +156,7 @@ Case basenames must be unique across the suite. Suggested form is `<phase>_<feat
 
 ## 8. Automated command contract
 
-M2 established and M3 expands:
+M2 established, M3 expanded, and M4 now validates:
 
 ```text
 make
@@ -156,9 +164,10 @@ make test
 make clean
 ```
 
-- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests with the unchanged AST golden, then runs 10 lexer cases with exact token/diagnostic/exit checks.
+- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests with the unchanged AST golden, runs 10 lexer cases, then runs 32 parser cases with exact selected AST/diagnostic/exit checks.
 - The lexer cases cover all 32 tokens, identifier/keyword boundaries, compact longest-match operators, whitespace, blank lines, code-before-comment and full-line comments, LF and generated CRLF input, the official sample, unsupported block-comment behavior, invalid characters, and malformed numeric spellings.
+- Parser cases cover every required statement, all 14 operators, precedence/non-associativity, the manual initialized-declaration example, standalone/empty/nested blocks, the official sample, seven parser-built AST goldens, LF/generated-CRLF lines, required unsupported forms, semicolon/closing-brace recovery, and lexical/syntax diagnostic separation.
 - The POSIX test runner quotes paths because the Windows-mounted repository path contains spaces, normalizes tracked CRLF-sensitive goldens, and creates temporary CRLF input only under ignored `build/test-results/`.
 - `make clean` removes only generated content under `build/`; it never deletes tracked expected or curated actual evidence.
 
-Verified M3 commands: `make clean`, `make`, and `make test` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because the complete parser and later phases do not yet exist.
+Verified M4 commands: `make clean`, `make`, `make test`, and final `make clean` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because semantic analysis, TAC, and the final driver do not yet exist.

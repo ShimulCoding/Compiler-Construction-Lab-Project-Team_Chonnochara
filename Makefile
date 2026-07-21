@@ -3,7 +3,7 @@ BISON := bison
 FLEX := flex
 CPPFLAGS := -Isrc -Ibuild/generated
 CFLAGS := -std=c11 -Wall -Wextra -Wpedantic
-BISONFLAGS := -Wall -Wcounterexamples
+BISONFLAGS := -Wall -Wcounterexamples -Werror=conflicts-sr -Werror=conflicts-rr
 FLEXFLAGS := --warn
 
 BUILD_DIR := build
@@ -23,17 +23,23 @@ AST_TEST_OBJECT := $(OBJECT_DIR)/test_ast.o
 TOKEN_TEST_OBJECT := $(OBJECT_DIR)/test_token_interface.o
 LEXER_OBJECT := $(OBJECT_DIR)/lexer.o
 LEXER_DRIVER_OBJECT := $(OBJECT_DIR)/lexer_driver.o
+PARSER_OBJECT := $(OBJECT_DIR)/parser.o
+PARSER_DRIVER_OBJECT := $(OBJECT_DIR)/parser_driver.o
 AST_TEST_BINARY := $(BUILD_DIR)/ast_tests
 TOKEN_TEST_BINARY := $(BUILD_DIR)/token_interface_test
 LEXER_TEST_BINARY := $(BUILD_DIR)/lexer_test
+PARSER_TEST_BINARY := $(BUILD_DIR)/parser_test
 
-.PHONY: all test clean token-interface lexer-test
+.PHONY: all test clean token-interface lexer-test parser-test
 
-all: $(AST_TEST_BINARY) $(TOKEN_TEST_BINARY) $(LEXER_TEST_BINARY)
+all: $(AST_TEST_BINARY) $(TOKEN_TEST_BINARY) $(LEXER_TEST_BINARY) \
+	$(PARSER_TEST_BINARY)
 
 token-interface: $(PARSER_HEADER)
 
 lexer-test: $(LEXER_TEST_BINARY)
+
+parser-test: $(PARSER_TEST_BINARY)
 
 $(PARSER_SOURCE) $(PARSER_HEADER) &: $(PARSER_SPEC)
 	@mkdir -p $(GENERATED_DIR)
@@ -73,13 +79,28 @@ $(LEXER_DRIVER_OBJECT): tests/support/lexer_driver.c $(PARSER_HEADER) \
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(PARSER_OBJECT): $(PARSER_SOURCE) $(PARSER_HEADER) src/parser/parser.h \
+                       src/lexer/lexer.h src/ast/ast.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $(PARSER_SOURCE) -o $@
+
+$(PARSER_DRIVER_OBJECT): tests/support/parser_driver.c src/parser/parser.h \
+                              src/ast/ast.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(AST_TEST_BINARY): $(AST_OBJECTS) $(AST_TEST_OBJECT)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(TOKEN_TEST_BINARY): $(TOKEN_TEST_OBJECT)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(LEXER_TEST_BINARY): $(LEXER_OBJECT) $(LEXER_DRIVER_OBJECT)
+$(LEXER_TEST_BINARY): $(PARSER_OBJECT) $(LEXER_OBJECT) $(AST_OBJECTS) \
+                           $(LEXER_DRIVER_OBJECT)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(PARSER_TEST_BINARY): $(PARSER_OBJECT) $(LEXER_OBJECT) $(AST_OBJECTS) \
+                            $(PARSER_DRIVER_OBJECT)
 	$(CC) $(CFLAGS) $^ -o $@
 
 test: all

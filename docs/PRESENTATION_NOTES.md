@@ -1,10 +1,10 @@
 # Presentation Notes
 
-Status: M3 provides a working mandatory lexer plus M2 AST/build evidence. No parser-to-AST pipeline, TAC demo, slide deck, or screenshot evidence exists yet.
+Status: M4 provides a working source-to-token-to-AST path plus M2/M3 evidence. No semantic/TAC pipeline, final driver, slide deck, or screenshot evidence exists yet.
 
 ## Core story
 
-Team Chonnochara plans to implement one fixed mini-language as a sequence of cooperating compiler phases:
+Team Chonnochara is implementing one fixed mini-language as a sequence of cooperating compiler phases:
 
 ```text
 source -> Flex lexer/tokens -> Bison parser/AST -> symbol table + semantic analysis -> TAC
@@ -42,7 +42,7 @@ M1 contract summary for a future language slide:
 - Point out that one `If` node represents both `if` and `if-else` through an optional else block.
 - Trace `a + b * 2`: the addition node owns an identifier on the left and a multiplication subtree on the right, preserving parser precedence without a parentheses node.
 - Show that every printed node includes `line=<n>` so later semantic diagnostics retain source context.
-- Run `make test` and explain the two results: generated Bison token-header validation and 15 direct AST tests plus golden printer comparison.
+- Run `make test` and explain the preserved M2 result: generated-header validation and 15 direct AST tests plus golden printer comparison.
 
 ## M3 lexer demonstration material
 
@@ -54,6 +54,18 @@ M1 contract summary for a future language slide:
 - Demonstrate `@` on line 3 producing `lexical error at line 3 [LEX_INVALID_TOKEN]: invalid token '@'` and exit 1.
 - Clarify that `tests/support/lexer_driver.c` is only a temporary token display tool; the future compiler driver and Bison semantic values are separate milestones.
 - Current `make test` summary covers the token header, 15 AST tests/unchanged golden, and 10 lexer cases including the official sample.
+
+## M4 parser demonstration material
+
+- Show how the lexer fills Bison semantic values and line locations, then how grammar actions call the existing `ast_new_*` constructors.
+- Trace `a + b * c`: the layered grammar reduces multiplication inside the right side of addition without using conflict-hiding precedence directives.
+- Point out that equality and relational productions allow at most one operator at their tier, so `a < b < c` and `a == b != c` reject.
+- Show `{}` and the nested-block golden: parser-owned temporary statement lists allow zero/multiple statements and transfer them into program/block AST nodes in source order.
+- Explain that `%destructor` frees discarded identifier strings, AST nodes, and temporary lists during recovery; successful constructors take child ownership.
+- Demonstrate `print ;` followed by later input: recovery synchronizes at `;` and reports a later independent error. A separate case synchronizes at `}`.
+- Demonstrate `@`: Flex prints `LEX_INVALID_TOKEN`, Bison receives `YYUNDEF`, and the parser suppresses the duplicate generic syntax report for that same token.
+- Show the official Section 5.5 source producing the parser-built AST and the manual's `bool ... = 5 + 3.2;` reaching an initializer subtree for future semantic rejection.
+- Current `make test` summary is: header check, 15 AST tests, 10 lexer cases, and 32 parser cases with seven AST goldens and zero Bison conflicts.
 
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
@@ -92,6 +104,8 @@ These are verified project-start challenges and may be used if still relevant:
 - The audit began only ten days before the strict 31 July deadline.
 
 Resolved implementation challenge: the supported WSL2/Ubuntu toolchain was installed and validated, including direct C11/Flex/Bison/GCC and GNU Make smoke builds. M2 then kept all generated artifacts under ignored `build/` while building from the Windows-mounted path containing spaces.
+
+Resolved M4 challenge: once Flex began writing Bison's `yylval` and `yylloc`, even the lexer-only phase test needed the generated parser object at link time. The Makefile now shares that generated definition while keeping token numbers in one header. Recovery ownership was kept safe with explicit transfers and Bison destructors rather than a second AST representation.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

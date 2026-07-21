@@ -1,0 +1,5 @@
+// The parser should ignore this first line.
+
+int value;
+// This comment also occupies one source line.
+value = 1;

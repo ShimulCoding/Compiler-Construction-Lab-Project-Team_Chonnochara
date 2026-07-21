@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: M3 lexer and M2 AST/build notes name the implemented interfaces. Every member must understand the complete project, not only their attributed commits.
+Status: M4 parser/AST integration plus the M2/M3 foundations are implemented and documented. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -59,6 +59,38 @@ Physical EOF makes `yylex()` return `0`/`YYEOF`; no custom `END` exists. Make ge
 ### What do the M3 tests prove?
 
 Ten cases cover all 32 token kinds, keyword-prefix identifiers, compact overlapping operators, exact numeric forms, layout/comments, LF/CRLF lines, the official sample, unsupported block-comment behavior, an invalid character, and malformed numbers. They prove tokenization only—not parsing, AST construction from source, semantic validity, or TAC.
+
+### How does the M4 parser receive values and locations?
+
+The generated `parser.tab.h` defines the token constants, `YYSTYPE`, and `YYLTYPE`. Flex copies identifier text into `yylval.text`, converts numeric lexemes into numeric union members, and sets the token's first/last line from `yylineno`. Parser actions convert the first line to `SourceLocation` before constructing an AST node.
+
+### How is parser precedence implemented?
+
+The grammar uses one nonterminal per precedence tier: logical OR, logical AND, equality, relational, additive, multiplicative, unary, and primary. Left recursion makes the required binary tiers left-associative; recursive `! unary_expression` is right-associative. Equality/relational tiers contain at most one operator, so unparenthesized chains reject. Bison generated zero conflicts without precedence directives.
+
+### How do parser statement lists and empty blocks work?
+
+While parsing, `AstNodeList *` holds statements not yet attached to a program or block. `%empty` creates a zero-count list for `{}`. Each successful statement append transfers its node into the list; completing `program` or `block` moves the nodes into the AST container in source order and frees only the temporary list storage.
+
+### How does parser ownership stay safe during an error?
+
+Flex owns copied identifier token text. A successful AST constructor copies the required name, after which the action frees the token copy. AST nodes own successful child transfers. Bison `%destructor` rules free token strings, nodes, and temporary lists discarded during recovery. If any lexical or syntax error remains, `parser_parse` destroys the partial root and returns no AST. This is explicit cleanup, not a claim that a leak detector was run.
+
+### How are syntax errors and recovery handled?
+
+The wrapper prints `syntax error at line n [SYN_UNEXPECTED_TOKEN]: ...` using Bison's detailed expected-token message. `error SEMICOLON` skips a malformed statement through `;`; `LBRACE error RBRACE` skips malformed block contents through `}`. Both call `yyerrok`, and a recovered item is not added to the AST. Tests show parsing continues far enough to find a later independent error.
+
+### How is a duplicate lexical/syntax diagnostic avoided?
+
+Flex reports the invalid lexeme first and returns Bison's built-in `YYUNDEF`. The parser compares the scanner's lexical-error count with the count already seen; the first parser callback for that same marker is suppressed. Because the count is then recorded, a later syntax error with no new lexical report is printed normally.
+
+### What is the M4 public/test interface?
+
+`parser_parse(FILE *, AstNode **)` in `src/parser/parser.h` returns success, lexical failure, syntax failure, or an internal/test failure. `tests/support/parser_driver.c` opens one source, invokes that function, prints the AST only on success, and frees it. It is a phase-test driver; semantic analysis, TAC, and the final CLI remain later milestones.
+
+### What do the M4 tests prove?
+
+Thirty-two parser cases cover all required statements and 14 operators, structural precedence, the manual initializer form, standalone/empty/nested blocks, the official sample, LF/CRLF lines, selected AST goldens, required syntax rejections, recovery at `;`/`}`, and lexical/syntax diagnostic separation. They prove syntax and AST construction only, not name/type correctness or TAC.
 
 ### How is the M2 AST represented?
 

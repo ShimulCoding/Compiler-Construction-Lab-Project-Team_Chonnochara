@@ -1,0 +1,14 @@
+int add_value = a + b;
+int subtract_value = a - b;
+int multiply_value = a * b;
+int divide_value = a / b;
+int remainder_value = a % b;
+bool less_value = a < b;
+bool greater_value = a > b;
+bool less_equal_value = a <= b;
+bool greater_equal_value = a >= b;
+bool equal_value = a == b;
+bool not_equal_value = a != b;
+bool and_value = p && q;
+bool or_value = p || q;
+bool not_value = !p;

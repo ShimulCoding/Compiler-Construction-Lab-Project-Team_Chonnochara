@@ -2,7 +2,7 @@
 
 Last implementation/test update: 21 July 2026.
 
-The M3 runner now executes the production lexer through a test-only driver, while the complete parser/compiler still does not exist. Lexical cases below have actual results; syntax, semantic, TAC, and end-to-end cases remain blocked. Do not treat successful tokenization as successful parsing or compilation.
+The M4 runner now executes the production lexer and complete Bison grammar through separate test-only drivers. Lexer and syntax/AST cases below have actual results; semantic, TAC, final-driver, and end-to-end cases remain blocked. Do not treat successful parsing as semantic validity or compilation through TAC.
 
 ## Inherited template cases
 
@@ -36,15 +36,15 @@ The M3 runner now executes the production lexer through a test-only driver, whil
 | LEX-05 | Invalid character/malformed token | Line-aware lexical diagnostic; nonzero exit | `@` after a comment/blank line produced exact `LEX_INVALID_TOKEN` at line 3 and exit 1 | Pass (M3 lexer) |
 | LEX-06 | Integer/float boundaries and malformed numbers | Contract-defined forms accepted; invalid forms diagnosed without misleading splits | `0`, `42`, `3.14`, `0.5` passed; `.5`, `5.`, and `1e10` each produced one exact lexical diagnostic and exit 1 | Pass (M3 lexer) |
 | LEX-07 | Unsupported `/* ... */` text | Must not be accepted as a comment | `/* block */` was not discarded; it emitted `SLASH STAR IDENTIFIER STAR SLASH` for later syntax rejection | Pass (M3 lexer boundary) |
-| SYN-01 | Each statement form, both declaration forms, and standalone/nested/empty blocks | Correct AST shapes; every block is a scope and initializer is an optional declaration child | Not created | Missing |
-| SYN-02 | Arithmetic/relational/logical precedence and associativity | Golden AST proves grouping | Not created | Missing |
-| SYN-03 | Isolated missing semicolon | One stable line-aware syntax diagnostic | Not created | Missing |
-| SYN-04 | Recovery across statement boundary | Later safe error is also reported | Not created | Missing |
-| SYN-05B | `print` literal, expression, and parenthesized operand | Three isolated fixtures are rejected; identifier-only form remains accepted | Not created | Missing |
-| SYN-05C | Unbraced control body | Isolated fixture is rejected | Not created | Missing |
-| SYN-05F | Bare expression statement | Isolated fixture is rejected | Not created | Missing |
-| SYN-05G | Numeric unary sign | Isolated fixture is rejected | Not created | Missing |
-| SYN-06 | Official initializer and block derivations | `bool b = 5 + 3.2;`, `{ }`, and a multiply nested standalone block all parse before semantics | Not created | Missing |
+| SYN-01 | Each statement form, both declaration forms, and standalone/nested/empty blocks | Correct AST shapes; every block is a scope and initializer is an optional declaration child | Valid parser fixtures and selected AST goldens passed | Pass (M4 parser) |
+| SYN-02 | Arithmetic/relational/logical precedence and associativity | Golden AST proves grouping | `precedence.mc` golden proves `!`, multiplicative/additive, relational, equality, `&&`, `||`, and parentheses; all 14 operators also parse | Pass (M4 parser) |
+| SYN-03 | Isolated missing semicolon | One stable line-aware syntax diagnostic | Exact line-2 diagnostic and exit 2 passed | Pass (M4 parser) |
+| SYN-04 | Recovery across statement/block boundaries | Later safe error is also reported | Two-error semicolon case and closing-brace synchronization case passed | Pass (M4 parser) |
+| SYN-05B | `print` literal, expression, and parenthesized operand | Three isolated fixtures reject; identifier-only form accepts | All three unsupported forms produced exact syntax diagnostics; identifier cases passed | Pass (M4 parser) |
+| SYN-05C | Unbraced control body | Isolated `if` and `while` fixtures rejected | Both produced exact `expecting {` diagnostics | Pass (M4 parser) |
+| SYN-05F | Bare expression statement | Isolated fixture rejected | `value + 1;` produced exact syntax diagnostic and exit 2 | Pass (M4 parser) |
+| SYN-05G | Numeric unary sign | Isolated fixture rejected | `value = -1;` produced exact syntax diagnostic and exit 2 | Pass (M4 parser) |
+| SYN-06 | Official initializer and block derivations | `bool b = 5 + 3.2;`, `{ }`, and a multiply nested standalone block all parse before semantics | All forms produced reviewed AST structures; official sample also parsed | Pass (M4 parser) |
 | SEM-01 | Use before declaration/never declared | Undeclared-variable diagnostic | Not created | Missing |
 | SEM-02A | Same-scope duplicate | `SEM_REDECLARATION`; first valid binding remains active | Not created | Missing |
 | SEM-02B | Nested shadow | Separate valid fixture succeeds and restores the outer binding on scope exit | Not created | Missing |
@@ -77,7 +77,7 @@ These checks validate the contract documents only; they are not compiler tests.
 | M1-V01 | Manual traceability | Every token/production maps to the manual or is labeled an implementation boundary | 23 nonterminals are defined and traced; all 22 non-start nonterminals are referenced on a RHS, while `<program>` is the start symbol | Pass (automated/documentary) |
 | M1-V02 | Token/operator inventory | 32 source tokens; all 14 listed arithmetic/relational/logical operators plus assignment/delimiters | Automated check found 32/32 catalog tokens and all 32 used by the BNF, with no unknown/unused terminal or custom `END` | Pass (automated static) |
 | M1-V03 | Official sample walkthrough | Section 5.5 program fits the CFG | Manual walkthrough completed | Pass (reasoned) |
-| M1-V04 | Grammar ambiguity review | Disjoint statement/declaration suffix starters, safe optional block content, layered expressions, no dangling else | Independent construction: 298 canonical LR(1) states and 85 merged LALR cores, with zero shift/reduce or reduce/reduce conflicts | Pass (static); actual Bison report pending toolchain |
+| M1-V04 | Grammar ambiguity review | Disjoint statement/declaration suffix starters, safe optional block content, layered expressions, no dangling else | Independent construction found zero conflicts; M4 Bison generation subsequently confirmed zero shift/reduce and reduce/reduce conflicts | Pass (static and implemented) |
 | M1-V05 | Semantic matrix review | Every valid signature and six error categories have one trigger | Independent review confirmed exact initializer compatibility, `SEM_TYPE_MISMATCH` classification, binding order, redeclaration behavior, cascade suppression, and TAC policy | Pass (documentary) |
 | M1-V06 | Toolchain source verification | Commands match current official Microsoft/Canonical/Ubuntu guidance | Official sources checked 2026-07-21 | Pass (research only) |
 | M1-V07 | System mutation check | No WSL/package installation; only the explicitly approved local M1 documentation commit | No installation command executed and no push performed | Pass |
@@ -118,6 +118,23 @@ Environment: the same Ubuntu 24.04.4 LTS WSL2 toolchain, including Flex 2.6.4, B
 | M3-L04 | Invalid input | Generic invalid character and three unsupported numeric spellings produce deterministic first-error output | Four isolated fixtures matched exact stderr/exit-1 goldens | Pass |
 | M3-L05 | Unsupported block comment | Scanner does not silently add block-comment support | Compact block-comment spelling emitted operator/content tokens rather than disappearing | Pass |
 | M3-V03 | Automated/regression target | New lexer tests and every M2 test pass together | `make test` reported generated-header PASS, AST/golden PASS, and 10 lexer cases PASS; AST binary remains 15/15 | Pass |
+
+## M4 parser and AST-integration validation
+
+Environment: Ubuntu 24.04.4 LTS on WSL2 with Bison 3.8.2, Flex 2.6.4, and GCC 13.3.0. `tests/support/parser_driver.c` is test-only; semantic/TAC validity is not claimed.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M4-V01 | Grammar generation/build | Complete CFG; zero shift/reduce and reduce/reduce conflicts; warning-clean C11/Flex integration | Bison ran with conflict warnings promoted to errors; Bison/Flex/GCC completed with zero conflicts and no actionable warnings | Pass |
+| M4-P01 | Required statement/block forms | Both declarations, assignment, print, `if`, `if-else`, `while`, standalone/empty/nested blocks, and multiple top-level statements build ASTs | All valid fixtures exited 0; selected initialized/nested/control outputs matched exact goldens | Pass |
+| M4-P02 | Expression construction | All 14 operators parse; AST reflects structural precedence, associativity, parentheses, and right-recursive `!` | All-operator source passed; precedence golden placed `*` under `+`, relation under `!`, `&&` above `||`, and honored grouping | Pass |
+| M4-P03 | Manual compatibility/sample | `bool b = 5 + 3.2;` reaches AST; Section 5.5 sample parses through normal EOF | Manual initializer appeared as a declaration with `+` initializer subtree; official sample matched its reviewed AST golden | Pass |
+| M4-P04 | Locations and line endings | Comments/blank lines preserve node/diagnostic lines for LF and CRLF | LF and generated CRLF sources produced the same line-3/line-5 AST; invalid source after comments reported line 4 | Pass |
+| M4-P05 | Syntax boundaries | Missing punctuation/braces, unbraced bodies, misplaced `else`, unsupported print operands, empty source, bare expression, numeric unary minus, and comparison chains reject | Fifteen isolated syntax fixtures matched exact `SYN_UNEXPECTED_TOKEN` stderr and exit 2 | Pass |
+| M4-P06 | Basic recovery | Parser continues after malformed input at `;` and `}` without producing an authoritative AST | Semicolon fixture reported independent errors on lines 1 and 3; closing-brace fixture synchronized and returned syntax failure with empty stdout | Pass |
+| M4-P07 | Lexical/syntax integration | One lexical root error has no duplicate syntax diagnostic; later independent syntax remains visible | Isolated `@` emitted only `LEX_INVALID_TOKEN`; combined case emitted that lexical error plus a later line-3 syntax error and kept exit 1 | Pass |
+| M4-P08 | Ownership/error-path policy | Persistent identifier text is copied; discarded text/nodes/lists have Bison destructors; failures return no AST | Parser actions/destructors and empty-stdout assertions exercised normal/recovery cleanup without crashes; no leak-detector claim | Pass |
+| M4-V02 | Automated regressions | M2 AST and M3 lexer behavior remain unchanged | `make test` reported header PASS, 15/15 AST/golden PASS, 10 lexer PASS, and 32 parser PASS | Pass |
 
 ## Audit commands and results
 

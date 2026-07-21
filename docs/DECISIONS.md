@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1-M2 decisions are approved and committed. M3 decisions below are validated, reviewed, and approved as Dipro's milestone.
+Status: M1-M3 decisions are approved and committed. M4 decisions below are implemented, validated, and approved as Mehedi's milestone; the approved local commit has not yet been created or pushed.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -71,6 +71,19 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-305 | Support only `//` comments. A `/* ... */` spelling is not discarded and is emitted as its individually valid slash/star/identifier tokens for later syntax rejection. | Does not add the unsupported block-comment feature or mislabel valid operator characters as an unmatchable token. |
 | D-306 | Keep the 32-name display switch in `tests/support/lexer_driver.c` only; it maps generated Bison constants for golden output and is not a production token definition. | Provides deterministic phase tests while the complete parser/driver do not exist; static validation checks it against the parser catalog. |
 | D-307 | During M4, distinguish an already-reported lexical failure from an independent syntax error. If `YYUNDEF` represents the same token for which the lexer emitted `LEX_INVALID_TOKEN`, parser/compiler integration must not emit a duplicate generic syntax diagnostic for that root cause. | Preserves one clear primary diagnostic while still allowing genuinely independent syntax errors to be reported. This is an M4 integration contract, not M3 parser implementation. |
+
+## M4 parser and AST-integration decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-401 | Use one Bison `%union` containing only `AstNode *`, temporary `AstNodeList *`, copied identifier text, numeric values, `ValueType`, and binary-operator tags. | These are the exact values required to construct syntax trees; symbol-table and semantic-analysis state remain outside the parser. |
+| D-402 | Encode precedence and associativity through the approved layered nonterminals, with equality and relational productions admitting at most one operator at their tier. | The grammar stays readable and unambiguous, rejects unparenthesized comparison chains, and generated with zero conflicts without precedence directives hiding ambiguity. |
+| D-403 | Enable Bison locations and have Flex set each token's first/last line from `yylineno`; convert the first line to the existing line-only `SourceLocation` at each AST action. | Preserves diagnostic lines across comments, blank lines, LF, and CRLF without redesigning the M2 location abstraction. |
+| D-404 | Copy identifier lexemes in Flex, let AST constructors copy required names, then free the token copy in successful actions. Use `%destructor` for identifier strings, AST nodes, and parser-owned temporary statement lists discarded during recovery. | `yytext` is never retained, successful ownership transfer is explicit, and error paths have matching cleanup without changing the AST API. |
+| D-405 | Report Bison detailed expectations through the stable `SYN_UNEXPECTED_TOKEN` wrapper and recover with `error SEMICOLON` plus `LBRACE error RBRACE`. A recovered statement contributes no AST node, and any syntax-error count invalidates/destroys the partial AST. | Gives understandable basic recovery at two safe boundaries, avoids infinite loops, and prevents malformed trees from reaching later phases. |
+| D-406 | Track scanner errors already reported for `YYUNDEF`. Suppress exactly the corresponding parser callback; do not suppress a later independent syntax error after recovery. | Implements D-307 and keeps one root lexical diagnostic while retaining useful independent syntax evidence. |
+| D-407 | Keep `tests/support/parser_driver.c` as a phase-test tool that prints the parser-built AST and returns 1 for lexical failure, 2 for syntax failure, and 4 for usage/I/O/internal failure. | Enables M4 automation without pretending the final semantic/TAC compiler driver from M10 exists. |
+| D-408 | Convert integer/floating token text with C's `strtoll`/`strtod` into the existing AST `long long`/`double` fields; report an out-of-range conversion through the existing lexical failure path rather than store a saturated/infinite value. | M4 must create persistent numeric semantic values, and silently changing a literal's value would corrupt the AST. This adds no token, spelling, or language feature. |
 
 ## Resolved ambiguity register
 

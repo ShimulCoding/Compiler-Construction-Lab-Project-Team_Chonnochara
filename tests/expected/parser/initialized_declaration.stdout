@@ -1,0 +1,17 @@
+Program(line=1)
+  Declaration(line=1, type=int, name=count)
+    Initializer
+      IntegerLiteral(line=1, value=5)
+  Declaration(line=2, type=float, name=ratio)
+    Initializer
+      FloatLiteral(line=2, value=3.5)
+  Declaration(line=3, type=bool, name=ready)
+    Initializer
+      BooleanLiteral(line=3, value=true)
+  Declaration(line=4, type=bool, name=mismatch_for_semantics)
+    Initializer
+      BinaryExpression(line=4, operator="+")
+        Left
+          IntegerLiteral(line=4, value=5)
+        Right
+          FloatLiteral(line=4, value=3.2000000000000002)

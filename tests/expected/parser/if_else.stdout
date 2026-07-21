@@ -1,0 +1,10 @@
+Program(line=1)
+  If(line=1)
+    Condition
+      Identifier(line=1, name=ready)
+    Then
+      Block(line=1)
+        Print(line=2, name=left)
+    Else
+      Block(line=3)
+        Print(line=4, name=right)

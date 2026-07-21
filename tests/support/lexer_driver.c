@@ -69,6 +69,14 @@ static bool print_token(int token)
     return true;
 }
 
+static void release_token_value(int token)
+{
+    if (token == IDENTIFIER) {
+        free(yylval.text);
+        yylval.text = NULL;
+    }
+}
+
 int main(int argc, char **argv)
 {
     FILE *input;
@@ -93,9 +101,11 @@ int main(int argc, char **argv)
             break;
         }
         if (!print_token(token)) {
+            release_token_value(token);
             result = EXIT_FAILURE;
             break;
         }
+        release_token_value(token);
     }
 
     if (ferror(input)) {

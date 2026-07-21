@@ -9,6 +9,7 @@ actual_stdout="$result_directory/ast_unit.stdout"
 actual_stderr="$result_directory/ast_unit.stderr"
 normalized_expected="$result_directory/ast_unit.expected"
 lexer_binary="$repository_root/build/lexer_test"
+parser_binary="$repository_root/build/parser_test"
 
 mkdir -p "$result_directory"
 
@@ -163,3 +164,177 @@ run_lexer_failure \
     "$repository_root/tests/expected/lexer/invalid_exponent.exit"
 
 printf '%s\n' 'PASS: 10 lexer cases including longest match, LF/CRLF, comments, sample, and errors'
+
+run_parser_success()
+{
+    local case_name=$1
+    local source_file=$2
+    local expected_file=$3
+    local case_stdout="$result_directory/parser_$case_name.stdout"
+    local case_stderr="$result_directory/parser_$case_name.stderr"
+    local normalized_parser_expected="$result_directory/parser_$case_name.expected"
+
+    if ! "$parser_binary" "$source_file" >"$case_stdout" 2>"$case_stderr"; then
+        printf 'FAIL: parser success case %s returned nonzero\n' \
+            "$case_name" >&2
+        cat "$case_stderr" >&2
+        exit 1
+    fi
+    if [ -s "$case_stderr" ]; then
+        printf 'FAIL: parser success case %s wrote standard error\n' \
+            "$case_name" >&2
+        cat "$case_stderr" >&2
+        exit 1
+    fi
+    if [ ! -s "$case_stdout" ]; then
+        printf 'FAIL: parser success case %s produced no AST output\n' \
+            "$case_name" >&2
+        exit 1
+    fi
+
+    if [ "$expected_file" != "-" ]; then
+        sed 's/\r$//' "$expected_file" >"$normalized_parser_expected"
+        if ! cmp -s "$normalized_parser_expected" "$case_stdout"; then
+            printf 'FAIL: parser AST differs for %s\n' "$case_name" >&2
+            diff -u "$normalized_parser_expected" "$case_stdout" >&2 || true
+            exit 1
+        fi
+    fi
+}
+
+run_parser_failure()
+{
+    local case_name=$1
+    local source_file=$2
+    local expected_stderr_file=$3
+    local expected_exit_file=$4
+    local case_stdout="$result_directory/parser_$case_name.stdout"
+    local case_stderr="$result_directory/parser_$case_name.stderr"
+    local normalized_parser_expected="$result_directory/parser_$case_name.expected.stderr"
+    local actual_status
+    local expected_status
+
+    if "$parser_binary" "$source_file" >"$case_stdout" 2>"$case_stderr"; then
+        actual_status=0
+    else
+        actual_status=$?
+    fi
+    expected_status=$(tr -d '\r\n' <"$expected_exit_file")
+
+    if [ "$actual_status" -ne "$expected_status" ]; then
+        printf 'FAIL: parser failure case %s exited %s, expected %s\n' \
+            "$case_name" "$actual_status" "$expected_status" >&2
+        exit 1
+    fi
+    if [ -s "$case_stdout" ]; then
+        printf 'FAIL: parser failure case %s wrote unexpected standard output\n' \
+            "$case_name" >&2
+        cat "$case_stdout" >&2
+        exit 1
+    fi
+
+    sed 's/\r$//' "$expected_stderr_file" >"$normalized_parser_expected"
+    if ! cmp -s "$normalized_parser_expected" "$case_stderr"; then
+        printf 'FAIL: parser diagnostic differs for %s\n' "$case_name" >&2
+        diff -u "$normalized_parser_expected" "$case_stderr" >&2 || true
+        exit 1
+    fi
+}
+
+run_parser_success \
+    declaration \
+    "$repository_root/tests/parser/valid/declaration.mc" \
+    -
+run_parser_success \
+    all_operators \
+    "$repository_root/tests/parser/valid/all_operators.mc" \
+    -
+run_parser_success \
+    initialized_declaration \
+    "$repository_root/tests/parser/valid/initialized_declaration.mc" \
+    "$repository_root/tests/expected/parser/initialized_declaration.stdout"
+run_parser_success \
+    assignment_print \
+    "$repository_root/tests/parser/valid/assignment_print.mc" \
+    -
+run_parser_success \
+    precedence \
+    "$repository_root/tests/parser/valid/precedence.mc" \
+    "$repository_root/tests/expected/parser/precedence.stdout"
+run_parser_success \
+    empty_block \
+    "$repository_root/tests/parser/valid/empty_block.mc" \
+    -
+run_parser_success \
+    nested_blocks \
+    "$repository_root/tests/parser/valid/nested_blocks.mc" \
+    "$repository_root/tests/expected/parser/nested_blocks.stdout"
+run_parser_success \
+    if_without_else \
+    "$repository_root/tests/parser/valid/if_without_else.mc" \
+    -
+run_parser_success \
+    if_else \
+    "$repository_root/tests/parser/valid/if_else.mc" \
+    "$repository_root/tests/expected/parser/if_else.stdout"
+run_parser_success \
+    while \
+    "$repository_root/tests/parser/valid/while.mc" \
+    "$repository_root/tests/expected/parser/while.stdout"
+run_parser_success \
+    line_tracking_lf \
+    "$repository_root/tests/parser/valid/line_tracking.txt" \
+    "$repository_root/tests/expected/parser/line_tracking.stdout"
+
+parser_crlf_source="$result_directory/parser_line_tracking_crlf.mc"
+sed 's/\r$//' "$repository_root/tests/parser/valid/line_tracking.txt" \
+    | sed 's/$/\r/' >"$parser_crlf_source"
+run_parser_success \
+    line_tracking_crlf \
+    "$parser_crlf_source" \
+    "$repository_root/tests/expected/parser/line_tracking.stdout"
+
+run_parser_success \
+    official_sample \
+    "$repository_root/tests/lexer/official_sample.mc" \
+    "$repository_root/tests/expected/parser/official_sample.stdout"
+
+for parser_case in \
+    bare_expression \
+    chained_equality \
+    chained_relational \
+    empty_source \
+    invalid_else_placement \
+    line_after_comments \
+    missing_right_brace \
+    missing_right_parenthesis \
+    missing_semicolon \
+    numeric_unary_minus \
+    print_expression \
+    print_literal \
+    print_parenthesized \
+    recovery \
+    recovery_at_rbrace \
+    unbraced_if \
+    unbraced_while
+do
+    run_parser_failure \
+        "$parser_case" \
+        "$repository_root/tests/parser/invalid/$parser_case.mc" \
+        "$repository_root/tests/expected/parser/$parser_case.stderr" \
+        "$repository_root/tests/expected/parser/$parser_case.exit"
+done
+
+run_parser_failure \
+    lexical_error_no_duplicate_syntax \
+    "$repository_root/tests/lexer/invalid_character.mc" \
+    "$repository_root/tests/expected/lexer/invalid_character.stderr" \
+    "$repository_root/tests/expected/lexer/invalid_character.exit"
+
+run_parser_failure \
+    lexical_then_independent_syntax \
+    "$repository_root/tests/parser/invalid/lexical_then_syntax.mc" \
+    "$repository_root/tests/expected/parser/lexical_then_syntax.stderr" \
+    "$repository_root/tests/expected/parser/lexical_then_syntax.exit"
+
+printf '%s\n' 'PASS: 32 parser cases including all operators, AST goldens, recovery, LF/CRLF, and lexical-error suppression'

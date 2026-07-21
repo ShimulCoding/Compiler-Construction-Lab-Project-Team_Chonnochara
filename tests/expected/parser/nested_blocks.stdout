@@ -1,0 +1,11 @@
+Program(line=1)
+  Block(line=1)
+    Declaration(line=2, type=int, name=outer)
+      Initializer
+        IntegerLiteral(line=2, value=1)
+    Block(line=3)
+      Declaration(line=4, type=bool, name=inner)
+        Initializer
+          BooleanLiteral(line=4, value=true)
+      Block(line=5)
+        <empty>
