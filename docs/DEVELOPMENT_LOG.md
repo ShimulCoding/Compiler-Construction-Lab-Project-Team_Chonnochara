@@ -107,7 +107,25 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Technical decisions:** Precedence/non-associativity remain structural rather than hidden by precedence directives; one Bison `%union` carries only syntax-stage values; AST constructors copy identifier text, after which parser token storage is freed; no custom `END`, symbol table, type checking, TAC, or final driver was introduced.
 - **Tests/commands:** WSL `make clean`, `make`, `make test`, `make clean`; Windows Git status/diff/static token and artifact inspection.
 - **Result:** Bison generated the grammar with zero shift/reduce and zero reduce/reduce conflicts; Flex/GCC emitted no actionable warnings. The header check, 15 AST tests/unchanged direct golden, 10 lexer cases, and 32 parser cases passed. Parser cases cover all 14 operators, every required statement form, the official sample, seven AST goldens, LF/generated-CRLF locations, required rejected forms, two recovery boundaries, and lexical/syntax diagnostic separation.
-- **Git handling:** Approved for one local Mehedi-owned commit with message `Mehedi: Implemented syntax analysis and AST construction`; no commit existed when this entry was finalized, and pushing remains prohibited until separately approved.
+- **Git handling:** Committed and pushed as `6d6fc307a97d9edca6cc4f8ec47c114b3f695e25` with message `Mehedi: Implemented syntax analysis and AST construction` after separate approvals.
+
+## 21 July 2026 — M5 nested-scope symbol table
+
+- **Intended contributor/owner:** Shimul. Implementation is prepared and validated for review; ownership and a Git commit remain pending explicit approval.
+- **Task:** Implement only the reusable nested-scope symbol-table subsystem, focused unit/golden evidence, build integration, and related documentation without AST semantic traversal or diagnostics.
+- **Files implemented:** `src/symbol_table/symbol_table.h`, `src/symbol_table/symbol_table.c`, `tests/unit/test_symbol_table.c`, and `tests/expected/symbol_table_unit.stdout`.
+- **Supporting changes:** Incremental `Makefile`/`tests/run_tests.sh` rules plus concise project-state, architecture, decisions, testing, report, presentation, viva, roadmap, and traceability updates.
+- **Implemented:**
+  - symbols with copied name, `ValueType`, declaration `SourceLocation`, scope ID, and scope depth;
+  - automatic global scope ID 0/depth 0, monotonic child IDs, parent-linked active nesting, safe global-exit rejection, and retained inactive scope frames;
+  - explicit current-scope, innermost-first active, and newest-inactive history lookup;
+  - same-scope duplicate rejection, legal shadowing, outer restoration, sibling isolation, declaration-order retention, and initializer-before-insertion API support;
+  - opaque records, stable borrowed lookup pointers, read-only symbol views, recursive ownership cleanup, and deterministic creation-order printing.
+- **Why:** M6 requires one tested name/scope foundation that can distinguish active resolution, same-scope redeclaration, out-of-scope history, and never-declared names while keeping semantic policy outside the data structure.
+- **Technical decisions:** Scope frames and individually allocated symbols remain alive until table destruction; exit marks a frame inactive rather than deleting it. Linear lists favor clarity at this project scale. Internal result enums report duplicate/invalid/allocation/global-exit outcomes without emitting future `SEM_...` text.
+- **Tests/commands:** Baseline, focused, and final WSL validation with `make clean`, `make`, `make symbol-table-test`, direct unit execution, `make test`, and final `make clean`; Bash syntax plus Windows Git whitespace, scope, staging, and artifact checks.
+- **Result:** C11 compilation emitted no actionable warnings. All 30 symbol-table tests passed, two complete outputs matched each other and the tracked golden, and the generated-header, 15 AST, 10 lexer, and 32 parser regressions remained passing. Cleanup paths executed without crashes; no leak-analysis tool was installed or run, so no leak-free claim is made.
+- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Shimul review: `Shimul: Implemented nested-scope symbol table management`.
 
 ## Entry template
 

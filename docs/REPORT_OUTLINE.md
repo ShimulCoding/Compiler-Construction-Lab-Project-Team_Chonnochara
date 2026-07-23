@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1 language/grammar, M2 AST/build, M3 lexer, and uncommitted M4 parser evidence are prepared; later semantic/TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1-M4 language/lexer/parser/AST evidence and uncommitted M5 symbol-table evidence are prepared; semantic/TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -105,12 +105,18 @@ Give this chapter appropriate depth because semantic correctness has the highest
 
 ## 9. Symbol Table
 
-- Entry fields: name, type, scope, declaration line
-- scope representation and enter/exit operations
-- active lookup, same-scope insertion, and declaration history
-- shadowing decision
-- complexity and why the simple design suits this language
-- scope/redeclaration tests
+- Implemented files: `src/symbol_table/symbol_table.h` and `symbol_table.c`; direct tests in `tests/unit/test_symbol_table.c`
+- Opaque `SymbolTable`/`Symbol`, read-only `SymbolInfo`, copied name, `ValueType`, `SourceLocation`, scope ID, and scope depth
+- Permanent creation-ordered scope-frame array; parent-linked active stack; declaration-ordered linked symbols with stable addresses
+- automatic global ID 0/depth 0, monotonic non-reused child IDs, active/inactive state, and safe global-exit rejection
+- distinct current, active innermost-to-outer, and newest-inactive history lookup operations
+- same-scope duplicate rejection, legal shadowing, outer restoration, sibling isolation, and declaration-point/initializer-order support
+- table-owned frames/symbols/names, borrowed lookup pointers, `symbol_get_info`, and destruction of active plus exited scopes
+- deterministic printer format with active state and address-free metadata
+- linear lookup complexity and why it is clearer than a hash framework at this language/project scale
+- 30 direct tests, identical repeated output, and `tests/expected/symbol_table_unit.stdout`
+
+M5 limitation: this evidence proves symbol storage and scope mechanics only. M6 must traverse AST blocks/declarations/uses and translate statuses into line-aware `SEM_REDECLARATION`, `SEM_SCOPE_VIOLATION`, and `SEM_UNDECLARED` diagnostics.
 
 ## 10. Intermediate Code (TAC)
 

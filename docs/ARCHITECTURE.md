@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Status: **M4 integrates the tested lexer and AST through the complete Bison parser. The symbol table, semantic analyzer, TAC generator, and final compiler driver remain unimplemented.**
+Status: **M5 adds the tested nested-scope symbol-table foundation to the M4 source-to-AST path. AST semantic traversal, type checking, TAC, and the final compiler driver remain unimplemented.**
 
 ## Implemented M2 foundation
 
@@ -31,6 +31,15 @@ Status: **M4 integrates the tested lexer and AST through the complete Bison pars
 - Syntax diagnostics use `SYN_UNEXPECTED_TOKEN`. Recovery synchronizes at `;` or `}`; any syntax error invalidates and destroys the partial AST.
 - An already-reported lexical `YYUNDEF` suppresses only its matching generic syntax callback. A later independent syntax error is still emitted.
 - `src/parser/parser.h` exposes `parser_parse`; `tests/support/parser_driver.c` is a phase-test executable that prints parser-built ASTs. It is not the final compiler CLI.
+
+## Implemented M5 symbol table
+
+- `src/symbol_table/symbol_table.h` exposes an opaque table/symbol API with explicit scope and insertion result enums, three lookup modes, read-only symbol views, current-scope information, printing, and cleanup.
+- `src/symbol_table/symbol_table.c` creates global scope ID 0/depth 0, retains scope frames in monotonic creation order, links each child to its active parent, and marks exited frames inactive instead of deleting their declarations.
+- Each scope owns a declaration-ordered linked list of individually allocated symbols. A symbol stores its copied name, `ValueType`, `SourceLocation`, scope ID, and scope depth; its address remains stable while the table exists.
+- Current lookup supports same-scope duplicate checks. Active lookup walks parent frames from inner to outer. History lookup searches only inactive frames from newest to oldest, providing evidence for M6's scope-violation versus undeclared distinction without resolving an inactive symbol.
+- `symbol_table_print` produces address-free creation-order snapshots with active state and declaration order. `tests/unit/test_symbol_table.c` exercises 30 behaviors, and the runner compares two executions with `tests/expected/symbol_table_unit.stdout`.
+- The subsystem is deliberately independent of the AST. M6 will enter/exit once per block and enforce initializer-before-insertion order; M5 emits no semantic diagnostics.
 
 ## Required pipeline
 
@@ -94,7 +103,7 @@ project-root/
 `-- AGENTS.md
 ```
 
-Headers may remain beside their implementation to keep each module self-contained. Generated Flex/Bison C/header files, dependency files, test scratch output, and executables should go to `build/` and remain untracked. M2 must extend `.gitignore` for the actual output names, including Windows artifacts if that platform is later supported.
+Headers may remain beside their implementation to keep each module self-contained. Generated Flex/Bison C/header files, dependency files, test scratch output, and executables go to ignored `build/` and remain untracked. Windows artifacts must also remain ignored if that platform is later supported.
 
 ## Module contracts
 
@@ -160,7 +169,7 @@ One `AST_NODE_IF` represents both forms through an optional `else_block`. A decl
 
 ### Symbol table (`src/symbol_table/`)
 
-Recommended educational design: a stack/tree of scope records, with a linked list of symbols in each scope. Each symbol records:
+The implemented design uses permanent scope frames in a creation-ordered pointer array and a linked list of symbols inside each frame. Each symbol records:
 
 ```text
 name, declared type, scope id/depth, declaration line
@@ -169,15 +178,21 @@ name, declared type, scope id/depth, declaration line
 Operations:
 
 ```text
-enter_scope
-exit_scope
-insert_current_scope
-lookup_active_from_inner_to_outer
-lookup_any_declaration_history
-destroy
+symbol_table_enter_scope
+symbol_table_exit_scope
+symbol_table_insert
+symbol_table_lookup_current
+symbol_table_lookup_active
+symbol_table_lookup_history
+symbol_table_current_scope_info
+symbol_get_info
+symbol_table_print
+symbol_table_destroy
 ```
 
-Inner shadowing is allowed; redeclaration is rejected only in the same active scope. Scope records should remain queryable during the semantic pass (or a separate history should be kept) so a post-block use can be diagnosed as out-of-scope rather than never-declared.
+Global scope is created as ID 0/depth 0 and cannot be exited normally. Child IDs increase monotonically, while depth follows parent nesting. Exiting marks only the current child inactive and restores its parent. Inner shadowing is allowed; insertion rejects a duplicate only in the current scope and preserves the first binding. A post-block active lookup fails, while inactive-history lookup can still find the prior declaration for later `SEM_SCOPE_VIOLATION` classification.
+
+Lookup is intentionally linear: symbols are scanned in declaration order within a scope, active resolution walks the nesting depth, and history scans exited scopes newest first. The language and coursework scale do not justify a more complex hash-table framework. The table owns all frames, symbols, and copied names; returned `const Symbol *` pointers and `SymbolInfo.name` are borrowed until table destruction.
 
 ### Semantic analyzer (`src/semantic/`)
 
@@ -254,13 +269,13 @@ Tests should verify diagnostic phase, line, essential wording, and exit status w
 The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Git worktree while WSL compiles/tests the same checkout through `/mnt/e`; native Windows compilation remains unsupported. The implemented Makefile provides:
 
 ```text
-make          build AST/token tests plus generated lexer and parser phase tests
-make test     run M2/M3 regressions and the M4 parser/golden suite
+make          build AST, symbol-table, token, lexer, and parser phase tests
+make test     run M2-M4 regressions plus M5 symbol-table/golden tests
 make clean    remove only the generated build/ directory
 ```
 
 The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> phase-test executables`. Later milestones add semantic/TAC/compiler objects without duplicating token definitions. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and generates temporary CRLF sources under `build/test-results/` without tracking generated input.
 
-Current `make test` evidence is one generated-header check, 15 direct AST tests with unchanged golden output, 10 lexer cases, and 32 parser cases including seven parser-built AST goldens, all required grammar boundaries, both recovery points, and lexical/syntax diagnostic integration.
+Current `make test` evidence is one generated-header check, 15 direct AST tests with unchanged golden output, 30 symbol-table tests with identical repeated golden output, 10 lexer cases, and 32 parser cases including seven parser-built AST goldens, all required grammar boundaries, both recovery points, and lexical/syntax diagnostic integration.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.

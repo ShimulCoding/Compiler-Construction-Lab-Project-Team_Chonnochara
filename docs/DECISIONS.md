@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1-M3 decisions are approved and committed. M4 decisions below are implemented, validated, and approved as Mehedi's milestone; the approved local commit has not yet been created or pushed.
+Status: M1-M4 decisions are approved, committed, and pushed. M5 decisions below are implemented and validated, pending Shimul's review and approval.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -57,7 +57,7 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-204 | Use one `AST_NODE_IF` with a required then-block and optional else-block; omit punctuation/parenthesis nodes. | Both required forms share structure, while the expression tree already records parenthesized grouping. |
 | D-205 | Return `NULL`/`false` for invalid constructor arguments or allocation/list-growth failure; keep these internal failures separate from future `LEX_`, `SYN_`, and `SEM_` diagnostics. | Simple, testable C error handling without terminating inside a reusable data-structure module. |
 | D-206 | Print a deterministic two-space-indented tree with source lines and labeled structural edges; represent an empty statement list as `<empty>`. | Produces readable presentation output and a stable byte-comparable test oracle without adding Graphviz. |
-| D-207 | Keep all 32 token declarations in the minimal `src/parser/parser.y`; generate the shared Bison header before any future lexer compilation. The current one-token placeholder production is not the language parser. | Establishes one token-number authority now, satisfies the M2 roadmap, and avoids duplicating token enums in Flex/C. M4 replaces the placeholder production with the approved CFG. |
+| D-207 | Keep all 32 token declarations in `src/parser/parser.y` and generate the shared Bison header before Flex compilation. M2's one-token placeholder was only a foundation; M4 replaced it with the complete grammar. | Establishes one token-number authority and avoids duplicating token enums in Flex/C while preserving the generated-header dependency through later parser work. |
 | D-208 | Build only existing M2 artifacts and place every generated object, executable, Bison output, and routine test result under ignored `build/`. | Makes `make`, `make test`, and `make clean` truthful while avoiding fake rules for missing compiler phases. |
 
 ## M3 lexer decisions
@@ -85,6 +85,19 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-407 | Keep `tests/support/parser_driver.c` as a phase-test tool that prints the parser-built AST and returns 1 for lexical failure, 2 for syntax failure, and 4 for usage/I/O/internal failure. | Enables M4 automation without pretending the final semantic/TAC compiler driver from M10 exists. |
 | D-408 | Convert integer/floating token text with C's `strtoll`/`strtod` into the existing AST `long long`/`double` fields; report an out-of-range conversion through the existing lexical failure path rather than store a saturated/infinite value. | M4 must create persistent numeric semantic values, and silently changing a literal's value would corrupt the AST. This adds no token, spelling, or language feature. |
 
+## M5 symbol-table decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-501 | Keep every scope frame for the table's lifetime in creation order. Each frame has an active flag, a parent pointer, and a declaration-ordered linked list of individually allocated symbols. | Exiting a scope removes it from active lookup without losing the history needed to distinguish out-of-scope from never declared; individual symbol addresses remain stable for borrowed lookup results. |
+| D-502 | Create global scope ID 0/depth 0 automatically; assign later IDs monotonically and never reuse them. Reject ordinary exit of the global scope. | IDs identify creation history while depth describes nesting; later siblings receive distinct IDs at the same depth, and the table always retains a valid active root. |
+| D-503 | Expose separate current-scope, innermost-to-global active, and inactive-history lookups. Historical lookup searches exited scopes newest first and never resolves a binding as active. | Each future semantic question has one explicit operation: redeclaration detection, normal resolution, or scope-violation evidence. |
+| D-504 | Copy each successfully inserted name, reject same-scope duplicates before allocation, and permit child-scope shadowing. | The first binding remains unchanged after a duplicate attempt, caller buffers may change safely, and exiting a shadow restores the outer binding naturally through parent lookup. |
+| D-505 | Let semantic analysis control declaration order: check current scope, analyze an initializer against existing active bindings, then insert the fresh declaration. | The symbol table stays independent of AST traversal while directly supporting the approved initializer-before-binding rule. |
+| D-506 | Return internal scope/insertion statuses rather than emitting `SEM_...` diagnostics. | M5 is a reusable data structure; M6 owns source-facing classification and messages. |
+| D-507 | Print scopes in creation order and declarations in insertion order, including scope ID/depth/active state plus symbol name/type/line. Empty scopes print `<empty>`. | The output is deterministic, readable, address-free, and suitable for golden tests and viva explanation without becoming compiler output. |
+| D-508 | Keep `Symbol` and `SymbolTable` opaque. Lookups return borrowed `const Symbol *`, and `symbol_get_info` returns a read-only view whose name remains table-owned. | Callers cannot mutate table records accidentally; one destroy operation frees active/inactive frames, symbols, and names exactly once. |
+
 ## Resolved ambiguity register
 
 | Prior ID | Question | Resolution |
@@ -106,7 +119,6 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 
 | ID | Status | Decision area | Why deferred |
 | --- | --- | --- | --- |
-| D-103 | Proposed for M5 | Exact scope-record/symbol-list storage structure | Scope behavior is fixed, but data structure implementation belongs to the symbol-table milestone. |
 | D-104 | Proposed for M8 | Exact TAC instruction structure and final textual spelling | Determinism is fixed; representation belongs to TAC implementation. |
 
 Deferred decisions must not change the accepted language. Any actual language extension belongs to optional post-core work and requires explicit later approval.

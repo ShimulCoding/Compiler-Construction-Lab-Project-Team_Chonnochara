@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: M4 provides a working source-to-token-to-AST path plus M2/M3 evidence. No semantic/TAC pipeline, final driver, slide deck, or screenshot evidence exists yet.
+Status: M5 adds a working nested-scope symbol-table foundation to the M4 source-to-token-to-AST path. No semantic AST traversal, TAC pipeline, final driver, slide deck, or screenshot evidence exists yet.
 
 ## Core story
 
@@ -67,6 +67,16 @@ M1 contract summary for a future language slide:
 - Show the official Section 5.5 source producing the parser-built AST and the manual's `bool ... = 5 + 3.2;` reaching an initializer subtree for future semantic rejection.
 - Current `make test` summary is: header check, 15 AST tests, 10 lexer cases, and 32 parser cases with seven AST goldens and zero Bison conflicts.
 
+## M5 symbol-table demonstration material
+
+- Start with the automatic global scope: ID 0 and depth 0. Explain that a child increments depth, while every newly created child or sibling receives the next monotonic ID.
+- Show the golden snapshot with scopes `0,1,2,3` at depths `0,1,2,1`; exited scopes remain visible as `active=false`, while the later sibling is independently active.
+- Trace shadowing: global `int x`, inner `float x`, and active lookup returning the inner record. After exit, lookup naturally follows the restored parent and returns the outer record again.
+- Contrast the three lookups: current scope for redeclaration, active inner-to-outer for normal resolution, and inactive history for later scope-violation evidence. History never makes an exited declaration usable.
+- Explain initializer order without claiming semantics: M6 will look up the outer `x`, analyze the initializer, and only then call insertion for the inner `x`.
+- Point out ownership: the table copies names; scope frames and symbols remain allocated until destruction; lookup pointers are borrowed and read-only. This keeps pointers stable and preserves history.
+- Run `make test` and identify the new summary: header check, 15 AST tests, 30 symbol-table tests with repeatable golden output, 10 lexer cases, and 32 parser cases.
+
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
 ## Required live-demo sequence
@@ -106,6 +116,8 @@ These are verified project-start challenges and may be used if still relevant:
 Resolved implementation challenge: the supported WSL2/Ubuntu toolchain was installed and validated, including direct C11/Flex/Bison/GCC and GNU Make smoke builds. M2 then kept all generated artifacts under ignored `build/` while building from the Windows-mounted path containing spaces.
 
 Resolved M4 challenge: once Flex began writing Bison's `yylval` and `yylloc`, even the lexer-only phase test needed the generated parser object at link time. The Makefile now shares that generated definition while keeping token numbers in one header. Recovery ownership was kept safe with explicit transfers and Bison destructors rather than a second AST representation.
+
+Resolved M5 design challenge: an exited declaration must stop resolving actively but remain available to distinguish scope violation from a never-declared name. Permanent scope frames with an active flag preserve that history, while parent links keep active lookup and shadow restoration direct and explainable.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

@@ -2,7 +2,7 @@
 
 Last implementation/test update: 21 July 2026.
 
-The M4 runner now executes the production lexer and complete Bison grammar through separate test-only drivers. Lexer and syntax/AST cases below have actual results; semantic, TAC, final-driver, and end-to-end cases remain blocked. Do not treat successful parsing as semantic validity or compilation through TAC.
+The M5 runner now adds direct symbol-table unit/golden evidence to the production lexer and complete Bison grammar regressions. Scope data-structure cases below have actual results; AST semantic traversal, user-facing semantic diagnostics, TAC, final-driver, and end-to-end cases remain blocked. Do not treat successful symbol-table operations as implemented semantic analysis.
 
 ## Inherited template cases
 
@@ -135,6 +135,23 @@ Environment: Ubuntu 24.04.4 LTS on WSL2 with Bison 3.8.2, Flex 2.6.4, and GCC 13
 | M4-P07 | Lexical/syntax integration | One lexical root error has no duplicate syntax diagnostic; later independent syntax remains visible | Isolated `@` emitted only `LEX_INVALID_TOKEN`; combined case emitted that lexical error plus a later line-3 syntax error and kept exit 1 | Pass |
 | M4-P08 | Ownership/error-path policy | Persistent identifier text is copied; discarded text/nodes/lists have Bison destructors; failures return no AST | Parser actions/destructors and empty-stdout assertions exercised normal/recovery cleanup without crashes; no leak-detector claim | Pass |
 | M4-V02 | Automated regressions | M2 AST and M3 lexer behavior remain unchanged | `make test` reported header PASS, 15/15 AST/golden PASS, 10 lexer PASS, and 32 parser PASS | Pass |
+
+## M5 symbol-table validation
+
+Environment: Ubuntu 24.04.4 LTS on WSL2 with GCC 13.3.0 and GNU Make 4.3. Tests call the symbol-table API directly; they do not traverse parser-built ASTs or emit semantic diagnostics.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M5-V01 | Clean C11 build | `symbol_table.c` and its test compile with `-std=c11 -Wall -Wextra -Wpedantic` and no actionable warning | Focused and integrated builds completed without warnings | Pass |
+| M5-U01 | Records/global scope | Creation starts at scope ID 0/depth 0; inserted records retain copied name, type, line, ID, and depth | Creation, metadata, name-copy, and global insertion checks passed | Pass |
+| M5-U02 | Scope lifecycle | Child entry increments ID/depth; nested and later sibling IDs are unique; global exit is rejected safely | IDs `0,1,2,3` and depths `0,1,2,1` appeared in the reviewed golden; lifecycle checks passed | Pass |
+| M5-U03 | Lookup modes | Current lookup stays local; active lookup is innermost-first; history searches inactive scopes only | Missing/current/active/history, multiple-level, and borrowed-pointer checks passed | Pass |
+| M5-U04 | Duplicate/shadow behavior | Same-scope duplicate fails without replacing the first record; child shadow succeeds and outer binding returns after exit | Duplicate, original-preservation, shadow, innermost, and restoration checks passed | Pass |
+| M5-U05 | Sibling/history distinction | An exited sibling cannot resolve actively but remains historical; never-declared names fail both searches | Sibling isolation and inactive-versus-never-declared checks passed | Pass |
+| M5-U06 | Initializer-order support | Before an inner declaration is inserted, active lookup returns the outer name; afterward it returns the inner, then restores outer on exit | One explicit workflow exercised all three lookup points successfully | Pass |
+| M5-U07 | Ownership/cleanup | Names are copied; lookup pointers remain stable; destroying global-only, active-nested, exited, and NULL tables does not crash | Ownership, stable pointer, and cleanup execution checks passed; no leak-detector claim | Pass |
+| M5-U08 | Deterministic printer | Scope/symbol ordering and active state match one tracked golden and repeat identically | Two executions matched each other and `tests/expected/symbol_table_unit.stdout`; 30/30 tests passed | Pass |
+| M5-V02 | M2-M4 regressions | Header, AST/golden, lexer, parser/goldens, diagnostics, recovery, and official sample remain unchanged | `make test` reported header PASS, 15 AST PASS, 30 symbol-table PASS, 10 lexer PASS, and 32 parser PASS | Pass |
 
 ## Audit commands and results
 

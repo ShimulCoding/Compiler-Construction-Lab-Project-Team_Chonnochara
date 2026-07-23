@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: M4 parser/AST integration plus the M2/M3 foundations are implemented and documented. Every member must understand the complete project, not only their attributed commits.
+Status: M5 symbol-table management plus the M2-M4 lexer/parser/AST path are implemented and documented. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -50,11 +50,11 @@ An unmatched character or explicit unsupported numeric form prints `lexical erro
 
 ### Who owns `yytext`?
 
-Flex owns and reuses the `yytext` buffer. `lexer_current_lexeme()` therefore returns a borrowed pointer valid only until the next `yylex()` call. The test driver prints it immediately. M4 must copy identifier text or convert literal text before requesting another token, then attach appropriate Bison destructors.
+Flex owns and reuses the `yytext` buffer. `lexer_current_lexeme()` therefore returns a borrowed pointer valid only until the next `yylex()` call. The test driver prints it immediately. M4 copies identifier text or converts literal text before requesting another token, with Bison destructors for discarded values.
 
 ### How does the lexer end input and integrate with Bison?
 
-Physical EOF makes `yylex()` return `0`/`YYEOF`; no custom `END` exists. Make generates `parser.tab.h` from the current 32 `%token` declarations before Flex generates `lex.yy.c`. M4 replaces only the placeholder grammar and adds semantic/location assignments while preserving this token authority.
+Physical EOF makes `yylex()` return `0`/`YYEOF`; no custom `END` exists. Make generates `parser.tab.h` from the 32 `%token` declarations before Flex generates `lex.yy.c`. M4 replaced the placeholder grammar and added semantic/location assignments while preserving this token authority.
 
 ### What do the M3 tests prove?
 
@@ -118,7 +118,7 @@ Both use `AST_NODE_IF`. The condition and then-block are required; `else_block =
 
 ### How does the M2 Makefile prepare Flex/Bison integration?
 
-`src/parser/parser.y` currently contains only the 32 `%token` declarations and a clearly labeled placeholder production. Bison writes `build/generated/parser.tab.h`; both the token-interface test and M3 Flex scanner include that generated header. M4 will replace the placeholder production with the approved CFG and AST actions. Token numbers are not copied into a separate production lexer enum.
+M2 established the 32 `%token` declarations and generated-header dependency. M4 replaced its placeholder production with the approved CFG and AST actions. Bison writes `build/generated/parser.tab.h`; both the token-interface test and Flex scanner include that header, so token numbers are not copied into a second production enum.
 
 ### What do the M2 tests prove and not prove?
 
@@ -126,11 +126,43 @@ Both use `AST_NODE_IF`. The condition and then-block are required; `else_block =
 
 ### What does the symbol table store?
 
-At minimum: identifier name, declared type, scope identifier/depth, and declaration line. Operations insert in the current scope, look up from inner to outer scope, and enter/exit scopes.
+Each successful symbol stores a table-owned copy of its identifier name, `ValueType`, declaration `SourceLocation`, unique scope ID, and scope depth. `Symbol` is opaque; `symbol_get_info` returns a read-only view, and its name pointer remains borrowed from the table.
 
 ### How are nested scopes handled?
 
-Entering any block—including a standalone or empty block—pushes or activates a new scope. Lookup searches that scope then its parents. Leaving the block makes its declarations inactive. The proposed design retains declaration history so later use can be called out-of-scope rather than never declared. Inner shadowing is allowed; duplicate declarations in the same scope are rejected.
+`symbol_table_create` starts global scope ID 0/depth 0. Entering creates a permanent child frame, assigns the next monotonic ID, sets depth to parent depth plus one, and makes it current. Exiting marks the current child inactive and restores its parent; attempting to exit global returns `SYMBOL_SCOPE_CANNOT_EXIT_GLOBAL`. Later M6 block traversal will call this pair once per AST block.
+
+### Scope ID versus depth?
+
+An ID identifies one particular scope creation and is never reused. Depth is only the nesting level. Thus two sibling blocks can both be depth 1 but have IDs 1 and 3 because another nested scope was created between them.
+
+### What are the three lookup modes?
+
+`symbol_table_lookup_current` checks only the current frame and supports same-scope redeclaration detection. `symbol_table_lookup_active` follows parent links from current to global and returns the innermost visible binding. `symbol_table_lookup_history` checks only inactive frames, newest first; it supplies evidence for scope-violation classification but never makes that declaration active.
+
+### How do redeclaration and shadowing differ?
+
+Inserting a name already present in the current frame returns `SYMBOL_INSERT_DUPLICATE` before allocating or changing anything, so the first binding remains intact. The same name in a child frame is legal shadowing. Active lookup finds the child while it is active and naturally restores the outer record after child exit.
+
+### How are sibling scopes isolated?
+
+An exited sibling is no longer on the current frame's parent chain, so active lookup cannot see its declarations. Its frame remains inactive in creation history, and a later sibling receives a fresh ID even though it has the same depth.
+
+### How does M5 support initialized declarations?
+
+M5 does not traverse initializer ASTs. Its API lets M6 check the current scope, analyze the initializer using the existing active environment, and insert the new declaration afterward. Therefore `int x = x + 1;` in a child scope can resolve an outer `x` before the inner binding exists.
+
+### Why retain scopes and symbols until table destruction?
+
+Retained frames preserve inactive declaration history, and individually allocated symbols keep borrowed `const Symbol *` lookup results stable even as later declarations/scopes are added. The table owns every frame, symbol, and copied name; callers free none of them, and `symbol_table_destroy(NULL)` is safe.
+
+### How is symbol-table output deterministic?
+
+`symbol_table_print` visits scope frames in creation order and symbols in declaration order. It prints scope ID, depth, active state, name, type, and line, using `<empty>` for an empty frame. It contains no pointers or platform paths. Thirty direct tests run twice and match one tracked golden exactly.
+
+### What does M5 not implement?
+
+It does not walk the AST, emit `SEM_...` diagnostics, infer expression types, validate assignments/operators, or generate TAC. M6 will translate lookup/insertion outcomes into undeclared, scope-violation, and redeclaration diagnostics.
 
 ### Syntax error versus semantic error?
 

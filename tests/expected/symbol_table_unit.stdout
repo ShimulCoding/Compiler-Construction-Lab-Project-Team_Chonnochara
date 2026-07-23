@@ -1,0 +1,40 @@
+PASS: table creation
+PASS: initial global scope
+PASS: global scope ID
+PASS: global scope depth
+PASS: global symbol insertion
+PASS: current-scope lookup
+PASS: active-scope lookup
+PASS: missing-name lookup
+PASS: same-scope redeclaration rejection
+PASS: original binding preservation
+PASS: child-scope entry
+PASS: child-scope insertion
+PASS: nested shadowing
+PASS: innermost-first lookup
+PASS: scope exit
+PASS: outer-binding restoration
+PASS: sibling-scope isolation
+PASS: unique monotonic scope IDs
+PASS: scope depths
+PASS: historical lookup after exit
+PASS: inactive versus never declared
+PASS: multiple nested levels
+PASS: global-scope exit rejection
+PASS: invalid table arguments
+PASS: invalid names and types
+PASS: deterministic printer
+PASS: destruction with active scopes
+PASS: destruction with exited scopes
+PASS: stable borrowed lookup and owned name
+PASS: declaration-order preservation
+Symbol table unit tests: 30 passed
+Symbol table sample:
+Scope(id=0, depth=0, active=true)
+  Symbol(name=x, type=int, line=1)
+Scope(id=1, depth=1, active=false)
+  Symbol(name=x, type=float, line=4)
+Scope(id=2, depth=2, active=false)
+  Symbol(name=flag, type=bool, line=7)
+Scope(id=3, depth=1, active=true)
+  Symbol(name=count, type=int, line=11)

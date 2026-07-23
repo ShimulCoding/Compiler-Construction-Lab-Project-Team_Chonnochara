@@ -1,6 +1,6 @@
 # Test, Input, and Output Conventions
 
-Status: **M1 conventions approved. M4 expands the M2/M3 runner with executable parser fixtures, parser-built AST goldens, deterministic diagnostics, and recovery evidence; the final compiler driver does not yet exist.**
+Status: **M1 conventions approved. M5 adds repeatable symbol-table unit/golden evidence to the M2-M4 lexer/parser/AST runner; the final compiler driver does not yet exist.**
 
 These conventions make later phase tests deterministic while satisfying the manual's expected/actual-output requirement.
 
@@ -156,7 +156,7 @@ Case basenames must be unique across the suite. Suggested form is `<phase>_<feat
 
 ## 8. Automated command contract
 
-M2 established, M3 expanded, and M4 now validates:
+M2 established the runner, M3/M4 expanded it through parsing, and M5 now validates:
 
 ```text
 make
@@ -164,10 +164,11 @@ make test
 make clean
 ```
 
-- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests with the unchanged AST golden, runs 10 lexer cases, then runs 32 parser cases with exact selected AST/diagnostic/exit checks.
+- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests with the unchanged AST golden, runs 30 direct symbol-table tests twice against one tracked golden, runs 10 lexer cases, then runs 32 parser cases with exact selected AST/diagnostic/exit checks.
+- Symbol-table cases cover global/nested/sibling scopes, monotonic IDs/depths, declaration metadata/order, current/active/history lookup, duplicates, shadowing/restoration, inactive-versus-never-declared evidence, ownership, cleanup execution, and deterministic address-free printing. They do not claim AST semantic traversal or `SEM_...` diagnostics.
 - The lexer cases cover all 32 tokens, identifier/keyword boundaries, compact longest-match operators, whitespace, blank lines, code-before-comment and full-line comments, LF and generated CRLF input, the official sample, unsupported block-comment behavior, invalid characters, and malformed numeric spellings.
 - Parser cases cover every required statement, all 14 operators, precedence/non-associativity, the manual initialized-declaration example, standalone/empty/nested blocks, the official sample, seven parser-built AST goldens, LF/generated-CRLF lines, required unsupported forms, semicolon/closing-brace recovery, and lexical/syntax diagnostic separation.
 - The POSIX test runner quotes paths because the Windows-mounted repository path contains spaces, normalizes tracked CRLF-sensitive goldens, and creates temporary CRLF input only under ignored `build/test-results/`.
 - `make clean` removes only generated content under `build/`; it never deletes tracked expected or curated actual evidence.
 
-Verified M4 commands: `make clean`, `make`, `make test`, and final `make clean` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because semantic analysis, TAC, and the final driver do not yet exist.
+Verified M5 commands: `make clean`, `make`, `make test`, and final `make clean` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because semantic analysis, TAC, and the final driver do not yet exist.

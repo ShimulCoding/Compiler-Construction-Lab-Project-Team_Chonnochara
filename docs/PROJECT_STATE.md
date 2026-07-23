@@ -4,13 +4,13 @@ Last updated: 21 July 2026 (Asia/Dhaka)
 
 ## Executive status
 
-- **Stage:** M4 syntax analysis and lexer-to-AST integration are completed and validated. Mehedi has reviewed and accepted ownership; the approved local M4 commit has not yet been created or pushed.
-- **Implementation:** The C11/AST foundation, complete mandatory lexer, and complete Bison grammar with AST actions now exist. The symbol table, semantic analyzer, TAC generator, and final compiler driver do not yet exist; both current phase drivers under `tests/support/` are test-only.
-- **Integration:** Bison remains the sole 32-token authority. Flex now supplies owned identifier values, converted numeric values, and line locations; Bison recognizes the approved CFG and constructs the existing AST. Lexical `YYUNDEF` failures suppress only their matching syntax diagnostic. No source-to-TAC pipeline exists yet.
+- **Stage:** M5 nested-scope symbol-table implementation and validation are complete, pending Shimul's review and approval. No M5 commit exists yet.
+- **Implementation:** The C11/AST foundation, complete mandatory lexer/parser-to-AST path, and isolated nested-scope symbol table now exist. The semantic analyzer, TAC generator, and final compiler driver do not yet exist; current drivers under `tests/support/` remain test-only.
+- **Integration:** Bison remains the sole 32-token authority and produces the AST. The symbol table independently provides declaration records, active/current/history lookup, scope entry/exit, shadowing, and retained inactive history for M6; it does not yet traverse the AST or emit semantic diagnostics. No source-to-TAC pipeline exists yet.
 - **Build:** `make`, `make test`, and `make clean` work under the verified Ubuntu 24.04 WSL2 environment. Bison conflict warnings are treated as build errors, and generated files remain under ignored `build/`.
-- **Tests:** The current suite passes the generated-header check, all 15 AST tests with unchanged direct-construction golden output, all 10 lexer cases, and 32 parser cases. Parser evidence covers all operators and required statements, seven AST goldens, the official sample, LF/CRLF locations, syntax rejection boundaries, semicolon/closing-brace recovery, and lexical/syntax diagnostic separation.
+- **Tests:** The current suite passes the generated-header check, 15 AST tests with unchanged direct-construction golden output, 30 symbol-table unit tests with repeatable golden output, 10 lexer cases, and 32 parser cases. Symbol-table evidence covers global/nested/sibling scopes, duplicates, shadowing/restoration, inactive history, stable borrowed results, cleanup execution, and deterministic printing.
 - **Deadline:** 31 July 2026, no extensions. Target release freeze: 30 July 2026.
-- **Immediate next task:** Create and verify the single approved local Mehedi M4 commit, then stop before pushing or beginning M5.
+- **Immediate next task:** Review the completed M5 API, scope/history behavior, ownership, printer, and 30 tests before any Shimul-owned commit.
 - **Next Intended Contributor:** **Shimul**.
 
 The initialization and M1 documents describe audited facts and the finalized technical contract. They do not prove compiler implementation or functional test completion.
@@ -45,6 +45,7 @@ Do not count inherited commits or this Codex-assisted audit as a team-member con
 | AST subsystem | Tagged node model, source lines, constructors, statement lists, recursive cleanup, printer, and unit tests | M2 completed; owned and reviewed by Nayem |
 | Flex lexer | Complete mandatory rules, line/location access, invalid-token diagnostics, generated-header integration, and focused goldens | M3 completed; owned and reviewed by Dipro |
 | Bison parser | Complete approved CFG, semantic values/locations, AST actions, diagnostics/recovery, and focused parser goldens | M4 completed, validated, and accepted by Mehedi |
+| Symbol table | Scope records, stable symbol records, current/active/history lookup, monotonic IDs, printer, cleanup, and focused golden tests | M5 implemented and validated; pending Shimul review/approval |
 
 The README explicitly identifies the baseline as a template with no compiler solution. Its tree diagram is visibly mojibaked in the current checkout and its generic build/run commands do not describe an implemented program.
 
@@ -55,11 +56,11 @@ The README explicitly identifies the baseline as a template with no compiler sol
 | Flex lexer | M3 completed | `src/lexer/lexer.l` recognizes exactly the 32 source tokens, discards documented whitespace/`//` comments, tracks lines, and reports `LEX_INVALID_TOKEN`; focused goldens pass |
 | Bison parser | M4 completed/validated | `src/parser/parser.y` implements the complete approved CFG, typed values, locations, AST actions, stable syntax diagnostics, and `error` recovery with zero Bison conflicts |
 | AST | M2 completed | `src/ast/ast.h`, `ast.c`, and `ast_print.c` provide all mandatory AST shapes, source lines, ownership, cleanup, and deterministic printing |
-| Symbol table | Missing | No symbol entries or nested-scope operations |
+| Symbol table | M5 implemented/validated, pending review | `src/symbol_table/` stores name/type/location/scope metadata, manages global/nested scopes, preserves inactive history, and passes 30 direct unit tests |
 | Semantic analyzer | Missing | No AST walk, type rules, or diagnostics |
 | TAC generator | Missing | No temporaries, labels, instruction representation, or output |
 | Driver/integration | Missing | No CLI, phase sequencing, exit-code policy, or executable |
-| Build/test automation | M4 expansion implemented | `make`, `make test`, and `make clean` build and validate the AST, shared token header, generated lexer/parser, lexer fixtures, parser-built AST goldens, diagnostics, and recovery |
+| Build/test automation | M5 expansion implemented | `make`, `make test`, and `make clean` also build and validate the symbol table twice against one deterministic golden while preserving all M2-M4 suites |
 
 ## Build and environment status
 
@@ -76,7 +77,7 @@ Windows remains the canonical editing/Git worktree. WSL performs builds and test
 
 ## Test status and known coverage gaps
 
-- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 10 lexer cases, and 32 parser cases with byte-comparable AST/diagnostic/exit goldens.
+- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 30/30 symbol-table tests with identical repeated output, 10 lexer cases, and 32 parser cases with byte-comparable AST/diagnostic/exit goldens.
 - Lexer coverage includes all 32 token kinds, lowercase keyword versus identifier boundaries, compact overlapping operators, exact integer/float forms, spaces/tabs/blank lines, code followed by comments, LF and generated CRLF input, the complete Section 5.5 sample, unsupported block-comment behavior, invalid characters, and leading-dot/trailing-dot/exponent numeric rejection.
 - Recursive destruction executed successfully for nested trees; memory-leak verification remains unperformed because no leak-analysis package was approved or installed.
 - All 13 test files and both example files are Markdown containing fenced C-like snippets. No extraction runner exists.
@@ -84,7 +85,7 @@ Windows remains the canonical editing/Git worktree. WSL performs builds and test
 - Valid tests have no expected AST, TAC, stdout, or exit status.
 - The mandatory invalid-expression/operator semantic case is absent.
 - Type-mismatch and invalid-assignment sketches currently exercise essentially the same incompatible assignment behavior.
-- Parser-built ASTs now cover the full syntax contract. Remaining functional gaps begin at semantic/scope behavior: no symbol table, type/name analysis, TAC, final driver, or end-to-end compiler result exists.
+- Parser-built ASTs cover the full syntax contract, and the symbol-table data structure covers required scope mechanics in isolation. Remaining functional gaps begin with AST semantic traversal and user-facing name/type diagnostics, followed by TAC, the final driver, and end-to-end compiler behavior.
 - The M4 integration requirement is implemented: the lexer reports `LEX_INVALID_TOKEN` and returns `YYUNDEF`; the parser suppresses the matching generic syntax report but still reports a later independent syntax error after recovery.
 - The mixed-invalid example crosses lexical/syntax/semantic concerns and is unsuitable as an isolated oracle; retain it only as a later recovery stress test.
 
@@ -107,8 +108,8 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 ## Known risks
 
 - The audit began ten days before the 31 July deadline, leaving no schedule slack beyond the planned 30 July freeze.
-- The lexer/parser/AST front end is ready, but semantic/scope modules, TAC, and the final driver remain on the critical path with little schedule slack.
-- Shimul's M1, Nayem's M2, Dipro's M3, and Mehedi's M4 are genuine reviewed milestones; the approved local M4 commit is the remaining Git action before push review.
+- The lexer/parser/AST path and isolated symbol table are ready, but semantic integration, TAC, and the final driver remain on the critical path with little schedule slack.
+- M1-M4 are genuine reviewed and pushed milestones; M5 remains uncommitted until Shimul reviews and accepts responsibility.
 - Semantic analysis has the highest indicative implementation weight (20%) and currently has no design/code/tests.
 - The inherited README still describes the instructor template rather than Team Chonnochara's implementation.
 - The fork is one README commit behind the instructor repository; review that upstream change before deciding whether to merge it.
@@ -116,11 +117,11 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 
 ## Current development stage and next action
 
-M1-M3 are committed and pushed. The environment gate passed. M4 implementation, validation, Mehedi review, and ownership approval are complete; the approved local commit has not yet been created. The handoff is:
+M1-M4 are committed and pushed. The environment gate passed. M5 implementation and validation are complete but uncommitted. The handoff is:
 
-1. Stage exactly the approved M4 paths and create the one approved local Mehedi commit after the final integrity gate passes.
-2. Verify the commit metadata, path set, branch divergence, and clean worktree.
-3. Do not push or begin M5 without separate approval.
-4. Keep **Shimul** as the next intended contributor for M5 symbol-table scopes.
+1. Shimul reviews the public API, permanent scope-history model, ownership, debug output, and 30 focused tests before accepting responsibility.
+2. Do not stage, commit, push, or begin M6 until the user explicitly approves the next action.
+3. Keep **Shimul** as the next intended contributor until the genuine M5 contribution is reviewed, approved, and committed.
+4. After an approved M5 commit, advance the cycle to Nayem for M6 semantic declaration/use analysis.
 
-No symbol table, semantic analysis, TAC, final compiler driver, or end-to-end source-to-TAC behavior is claimed by M4.
+M5 does not claim AST semantic traversal, user-facing semantic diagnostics, type checking, TAC, a final compiler driver, or end-to-end source-to-TAC behavior.

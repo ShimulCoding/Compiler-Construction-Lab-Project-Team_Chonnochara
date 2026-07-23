@@ -19,27 +19,32 @@ LEXER_SOURCE := $(GENERATED_DIR)/lex.yy.c
 AST_OBJECTS := \
 	$(OBJECT_DIR)/ast.o \
 	$(OBJECT_DIR)/ast_print.o
+SYMBOL_TABLE_OBJECT := $(OBJECT_DIR)/symbol_table.o
 AST_TEST_OBJECT := $(OBJECT_DIR)/test_ast.o
+SYMBOL_TABLE_TEST_OBJECT := $(OBJECT_DIR)/test_symbol_table.o
 TOKEN_TEST_OBJECT := $(OBJECT_DIR)/test_token_interface.o
 LEXER_OBJECT := $(OBJECT_DIR)/lexer.o
 LEXER_DRIVER_OBJECT := $(OBJECT_DIR)/lexer_driver.o
 PARSER_OBJECT := $(OBJECT_DIR)/parser.o
 PARSER_DRIVER_OBJECT := $(OBJECT_DIR)/parser_driver.o
 AST_TEST_BINARY := $(BUILD_DIR)/ast_tests
+SYMBOL_TABLE_TEST_BINARY := $(BUILD_DIR)/symbol_table_tests
 TOKEN_TEST_BINARY := $(BUILD_DIR)/token_interface_test
 LEXER_TEST_BINARY := $(BUILD_DIR)/lexer_test
 PARSER_TEST_BINARY := $(BUILD_DIR)/parser_test
 
-.PHONY: all test clean token-interface lexer-test parser-test
+.PHONY: all test clean token-interface lexer-test parser-test symbol-table-test
 
-all: $(AST_TEST_BINARY) $(TOKEN_TEST_BINARY) $(LEXER_TEST_BINARY) \
-	$(PARSER_TEST_BINARY)
+all: $(AST_TEST_BINARY) $(SYMBOL_TABLE_TEST_BINARY) \
+	$(TOKEN_TEST_BINARY) $(LEXER_TEST_BINARY) $(PARSER_TEST_BINARY)
 
 token-interface: $(PARSER_HEADER)
 
 lexer-test: $(LEXER_TEST_BINARY)
 
 parser-test: $(PARSER_TEST_BINARY)
+
+symbol-table-test: $(SYMBOL_TABLE_TEST_BINARY)
 
 $(PARSER_SOURCE) $(PARSER_HEADER) &: $(PARSER_SPEC)
 	@mkdir -p $(GENERATED_DIR)
@@ -59,8 +64,22 @@ $(OBJECT_DIR)/ast_print.o: src/ast/ast_print.c src/ast/ast.h \
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(SYMBOL_TABLE_OBJECT): src/symbol_table/symbol_table.c \
+                             src/symbol_table/symbol_table.h \
+                             src/common/source_location.h \
+                             src/common/value_type.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(AST_TEST_OBJECT): tests/unit/test_ast.c src/ast/ast.h \
                          src/common/source_location.h src/common/value_type.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(SYMBOL_TABLE_TEST_OBJECT): tests/unit/test_symbol_table.c \
+                                  src/symbol_table/symbol_table.h \
+                                  src/common/source_location.h \
+                                  src/common/value_type.h
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -90,6 +109,10 @@ $(PARSER_DRIVER_OBJECT): tests/support/parser_driver.c src/parser/parser.h \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(AST_TEST_BINARY): $(AST_OBJECTS) $(AST_TEST_OBJECT)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(SYMBOL_TABLE_TEST_BINARY): $(SYMBOL_TABLE_OBJECT) \
+                                  $(SYMBOL_TABLE_TEST_OBJECT)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(TOKEN_TEST_BINARY): $(TOKEN_TEST_OBJECT)

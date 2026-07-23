@@ -8,6 +8,11 @@ result_directory="$repository_root/build/test-results"
 actual_stdout="$result_directory/ast_unit.stdout"
 actual_stderr="$result_directory/ast_unit.stderr"
 normalized_expected="$result_directory/ast_unit.expected"
+symbol_table_stdout="$result_directory/symbol_table_unit.stdout"
+symbol_table_repeat_stdout="$result_directory/symbol_table_unit.repeat.stdout"
+symbol_table_stderr="$result_directory/symbol_table_unit.stderr"
+symbol_table_repeat_stderr="$result_directory/symbol_table_unit.repeat.stderr"
+normalized_symbol_table_expected="$result_directory/symbol_table_unit.expected"
 lexer_binary="$repository_root/build/lexer_test"
 parser_binary="$repository_root/build/parser_test"
 
@@ -38,6 +43,44 @@ if ! cmp -s "$normalized_expected" "$actual_stdout"; then
 fi
 
 printf '%s\n' 'PASS: AST unit tests and deterministic printer output'
+
+if ! "$repository_root/build/symbol_table_tests" \
+    >"$symbol_table_stdout" 2>"$symbol_table_stderr"; then
+    printf '%s\n' 'FAIL: symbol-table unit test executable returned nonzero' >&2
+    cat "$symbol_table_stderr" >&2
+    exit 1
+fi
+
+if ! "$repository_root/build/symbol_table_tests" \
+    >"$symbol_table_repeat_stdout" 2>"$symbol_table_repeat_stderr"; then
+    printf '%s\n' 'FAIL: repeated symbol-table test run returned nonzero' >&2
+    cat "$symbol_table_repeat_stderr" >&2
+    exit 1
+fi
+
+if [ -s "$symbol_table_stderr" ] || [ -s "$symbol_table_repeat_stderr" ]; then
+    printf '%s\n' 'FAIL: symbol-table unit tests wrote unexpected standard error' >&2
+    cat "$symbol_table_stderr" "$symbol_table_repeat_stderr" >&2
+    exit 1
+fi
+
+sed 's/\r$//' "$repository_root/tests/expected/symbol_table_unit.stdout" \
+    >"$normalized_symbol_table_expected"
+
+if ! cmp -s "$normalized_symbol_table_expected" "$symbol_table_stdout"; then
+    printf '%s\n' 'FAIL: symbol-table output differs from the golden file' >&2
+    diff -u "$normalized_symbol_table_expected" "$symbol_table_stdout" >&2 \
+        || true
+    exit 1
+fi
+
+if ! cmp -s "$symbol_table_stdout" "$symbol_table_repeat_stdout"; then
+    printf '%s\n' 'FAIL: symbol-table output changed across repeated runs' >&2
+    diff -u "$symbol_table_stdout" "$symbol_table_repeat_stdout" >&2 || true
+    exit 1
+fi
+
+printf '%s\n' 'PASS: 30 symbol-table unit tests and deterministic printer output'
 
 run_lexer_success()
 {
