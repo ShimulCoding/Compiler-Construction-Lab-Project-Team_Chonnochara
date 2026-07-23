@@ -41,6 +41,17 @@ static AstNode *binary_owned(AstBinaryOperator operator,
     return node;
 }
 
+static AstNode *unary_owned(AstUnaryOperator operator, AstNode *operand)
+{
+    AstNode *node = ast_new_unary_expression(
+        at_line(1), operator, operand);
+
+    if (node == NULL) {
+        ast_destroy(operand);
+    }
+    return node;
+}
+
 static AstNode *declaration_owned(ValueType type,
                                   const char *name,
                                   AstNode *initializer)
@@ -445,69 +456,207 @@ static AstNode *build_control_flow_program(AstNodeKind kind)
     AstNode *program = ast_new_program(at_line(1));
     AstNode *block = ast_new_block(at_line(1));
     AstNode *statement = NULL;
-    bool appended;
 
-    if (kind == AST_NODE_IF) {
+    if (program == NULL || block == NULL
+        || !append_owned(program, declaration_owned(
+            VALUE_TYPE_BOOL, "ready",
+            ast_new_bool_literal(at_line(1), true)))) {
+        ast_destroy(block);
+        ast_destroy(program);
+        return NULL;
+    }
+
+    if (kind == AST_NODE_IF
+        && append_owned(block, ast_new_print(at_line(1), "ready"))) {
         statement = ast_new_if(
             at_line(1),
-            ast_new_bool_literal(at_line(1), true),
+            ast_new_identifier(at_line(1), "ready"),
             block,
             NULL);
-    } else if (kind == AST_NODE_WHILE) {
+    } else if (kind == AST_NODE_WHILE
+               && append_owned(block, assignment_owned(
+                   "ready",
+                   unary_owned(
+                       AST_UNARY_NOT,
+                       ast_new_identifier(at_line(1), "ready"))))) {
         statement = ast_new_while(
             at_line(1),
-            ast_new_bool_literal(at_line(1), true),
+            binary_owned(
+                AST_BINARY_EQUAL,
+                ast_new_identifier(at_line(1), "ready"),
+                ast_new_bool_literal(at_line(1), true)),
             block);
     }
 
-    if (program == NULL || statement == NULL) {
-        if (statement == NULL) {
-            ast_destroy(block);
-        } else {
-            ast_destroy(statement);
-        }
+    if (statement == NULL) {
+        ast_destroy(block);
         ast_destroy(program);
         return NULL;
     }
 
-    if (!append_owned(program, declaration_owned(
-            VALUE_TYPE_BOOL, "ready",
-            ast_new_bool_literal(at_line(1), true)))) {
-        ast_destroy(statement);
-        ast_destroy(program);
-        return NULL;
-    }
-
-    appended = append_owned(program, statement);
-    if (!appended) {
+    if (!append_owned(program, statement)) {
         ast_destroy(program);
         return NULL;
     }
     return program;
 }
 
-static bool test_if_is_unsupported_without_partial_program(void)
+static bool test_if_lowering(void)
 {
     AstNode *program = build_control_flow_program(AST_NODE_IF);
-    TacProgram *tac_program = (TacProgram *)program;
+    const char *expected =
+        "ready = true\n"
+        "ifFalse ready goto .L1\n"
+        "print ready\n"
+        ".L1:\n";
+    TacStatus status;
+    char *text = generate_text(program, &status);
     bool passed = program != NULL
-        && tac_generate(program, &tac_program)
-            == TAC_STATUS_UNSUPPORTED_NODE
-        && tac_program == NULL;
+        && status == TAC_STATUS_SUCCESS
+        && text != NULL
+        && strcmp(text, expected) == 0;
 
+    free(text);
     ast_destroy(program);
     return passed;
 }
 
-static bool test_while_is_unsupported_without_partial_program(void)
+static bool test_while_lowering_and_condition_placement(void)
 {
     AstNode *program = build_control_flow_program(AST_NODE_WHILE);
-    TacProgram *tac_program = (TacProgram *)program;
+    const char *expected =
+        "ready = true\n"
+        ".L1:\n"
+        "t1 = ready == true\n"
+        "ifFalse t1 goto .L2\n"
+        "t2 = ! ready\n"
+        "ready = t2\n"
+        "goto .L1\n"
+        ".L2:\n";
+    TacStatus status;
+    char *text = generate_text(program, &status);
     bool passed = program != NULL
-        && tac_generate(program, &tac_program)
-            == TAC_STATUS_UNSUPPORTED_NODE
-        && tac_program == NULL;
+        && status == TAC_STATUS_SUCCESS
+        && text != NULL
+        && strcmp(text, expected) == 0;
 
+    free(text);
+    ast_destroy(program);
+    return passed;
+}
+
+static AstNode *build_if_else_program(void)
+{
+    AstNode *program = ast_new_program(at_line(1));
+    AstNode *then_block = ast_new_block(at_line(1));
+    AstNode *else_block = ast_new_block(at_line(1));
+    AstNode *statement;
+
+    if (program == NULL || then_block == NULL || else_block == NULL
+        || !append_owned(program, declaration_owned(
+            VALUE_TYPE_BOOL, "ready",
+            ast_new_bool_literal(at_line(1), true)))
+        || !append_owned(then_block,
+                         ast_new_print(at_line(1), "ready"))
+        || !append_owned(else_block, assignment_owned(
+            "ready", ast_new_bool_literal(at_line(1), false)))) {
+        ast_destroy(then_block);
+        ast_destroy(else_block);
+        ast_destroy(program);
+        return NULL;
+    }
+
+    statement = ast_new_if(
+        at_line(1),
+        ast_new_identifier(at_line(1), "ready"),
+        then_block,
+        else_block);
+    if (statement == NULL) {
+        ast_destroy(then_block);
+        ast_destroy(else_block);
+        ast_destroy(program);
+        return NULL;
+    }
+    if (!append_owned(program, statement)) {
+        ast_destroy(program);
+        return NULL;
+    }
+    return program;
+}
+
+static bool test_control_instruction_model(void)
+{
+    AstNode *program = build_if_else_program();
+    TacProgram *tac_program = NULL;
+    bool passed = program != NULL
+        && tac_generate(program, &tac_program) == TAC_STATUS_SUCCESS
+        && tac_program != NULL
+        && tac_program->count == 7
+        && tac_program->instructions[1].kind
+            == TAC_INSTRUCTION_JUMP_IF_FALSE
+        && strcmp(tac_program->instructions[1].first_operand,
+                  "ready") == 0
+        && strcmp(tac_program->instructions[1].label, ".L1") == 0
+        && tac_program->instructions[3].kind
+            == TAC_INSTRUCTION_JUMP
+        && strcmp(tac_program->instructions[3].label, ".L2") == 0
+        && tac_program->instructions[4].kind
+            == TAC_INSTRUCTION_LABEL
+        && strcmp(tac_program->instructions[4].label, ".L1") == 0
+        && tac_program->instructions[6].kind
+            == TAC_INSTRUCTION_LABEL
+        && strcmp(tac_program->instructions[6].label, ".L2") == 0;
+
+    tac_program_destroy(tac_program);
+    ast_destroy(program);
+    return passed;
+}
+
+static bool test_label_and_temporary_counters_reset(void)
+{
+    AstNode *program = build_control_flow_program(AST_NODE_WHILE);
+    TacStatus first_status;
+    TacStatus second_status;
+    char *first = generate_text(program, &first_status);
+    char *second = generate_text(program, &second_status);
+    bool passed = program != NULL
+        && first_status == TAC_STATUS_SUCCESS
+        && second_status == TAC_STATUS_SUCCESS
+        && first != NULL
+        && second != NULL
+        && strstr(first, ".L1:\nt1 = ready == true\n") != NULL
+        && strcmp(first, second) == 0;
+
+    free(first);
+    free(second);
+    ast_destroy(program);
+    return passed;
+}
+
+static bool test_corrupt_statement_returns_no_partial_program(void)
+{
+    AstNode *program = ast_new_program(at_line(1));
+    AstNode *statement = ast_new_print(at_line(1), "ready");
+    TacProgram *tac_program = (TacProgram *)program;
+    bool passed;
+
+    if (program == NULL || statement == NULL
+        || !append_owned(program, declaration_owned(
+            VALUE_TYPE_BOOL, "ready",
+            ast_new_bool_literal(at_line(1), true)))
+        || !append_owned(program, statement)) {
+        if (program == NULL) {
+            ast_destroy(statement);
+        }
+        ast_destroy(program);
+        return false;
+    }
+
+    statement->kind = (AstNodeKind)999;
+    passed = tac_generate(program, &tac_program)
+        == TAC_STATUS_INTERNAL_ERROR
+        && tac_program == NULL;
+    statement->kind = AST_NODE_PRINT;
     ast_destroy(program);
     return passed;
 }
@@ -549,10 +698,16 @@ int main(void)
         {"repeated output determinism", test_repeated_output_determinism},
         {"shadow storage and outer restoration",
          test_shadow_storage_and_restoration},
-        {"if returns unsupported without partial TAC",
-         test_if_is_unsupported_without_partial_program},
-        {"while returns unsupported without partial TAC",
-         test_while_is_unsupported_without_partial_program},
+        {"if lowers to conditional jump and label",
+         test_if_lowering},
+        {"while reevaluates condition after start label",
+         test_while_lowering_and_condition_placement},
+        {"control instruction data model",
+         test_control_instruction_model},
+        {"label and temporary counters reset",
+         test_label_and_temporary_counters_reset},
+        {"corrupt statement returns no partial TAC",
+         test_corrupt_statement_returns_no_partial_program},
         {"printer rejects invalid programs", test_print_validation}
     };
     const size_t test_count = sizeof(tests) / sizeof(tests[0]);

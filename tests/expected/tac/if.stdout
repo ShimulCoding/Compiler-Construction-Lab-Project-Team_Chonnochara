@@ -1,0 +1,4 @@
+condition = true
+ifFalse condition goto .L1
+print condition
+.L1:

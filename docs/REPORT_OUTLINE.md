@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1-M6 language/front-end evidence is committed, and uncommitted M7 non-control-flow TAC evidence is prepared. M8 control-flow TAC and final end-to-end result sections remain incomplete. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1-M7 language/front-end/expression-TAC evidence is committed, and uncommitted M8 control-flow TAC evidence is prepared. The production CLI and final end-to-end result sections remain incomplete. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -38,7 +38,7 @@ Evidence needed: final repository state and concise pipeline figure.
 - Manual-derived support for standalone/empty nested blocks and optional declaration initializers, plus explicit resolutions for print operand, numeric conversion, `%`, unary operations, condition types, empty-program/bare-expression forms, exact floating-literal spellings, equality compatibility, normal Bison EOF, source-path conventions, and the semantic-error taxonomy
 - One valid and one invalid example
 
-Evidence prepared: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, the implemented lexer/parser sources, zero-conflict Bison generation, and executable lexical/syntax/AST tests. Semantic/TAC evidence remains later.
+Evidence prepared: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, implemented lexer/parser/semantic/TAC sources, zero-conflict Bison generation, and executable phase tests. Final production-driver evidence remains later.
 
 ## 4. Compiler Architecture
 
@@ -102,7 +102,7 @@ M2 evidence: clean C11 build, 15 direct AST unit tests, generated Bison token-he
 - Initialized-declaration traversal, pre-binding initializer visibility, post-analysis insertion, redeclaration preservation, and cascade suppression
 - Exact six-code taxonomy and deterministic line-aware diagnostic format
 - Six valid plus twenty invalid semantic cases with exact stderr/exit goldens; full M2-M5 regression results
-- Limitation: semantic state is transient and no TAC/final compiler output is produced yet
+- Limitation: semantic state is transient; the separate TAC phase consumes only semantic success, while final compiler output still awaits the production driver
 
 Give this chapter appropriate depth because semantic correctness has the highest indicative implementation weight.
 
@@ -123,16 +123,18 @@ M5/M6 boundary: M5 proves reusable symbol storage and scope mechanics; M6 consum
 
 ## 10. Intermediate Code (TAC)
 
-- M7 implemented files: `src/codegen/tac.h`, `tac.c`; direct tests in `tests/unit/test_tac.c`; parser/semantic/TAC phase driver in `tests/support/tac_driver.c`
-- owned dynamic `TacProgram` with tagged assignment, unary, binary, and print instructions; copied result/operator/operand strings; safe destruction and explicit statuses
+- M7/M8 implemented files: `src/codegen/tac.h`, `tac.c`; direct tests in `tests/unit/test_tac.c`; parser/semantic/TAC phase driver in `tests/support/tac_driver.c`
+- owned dynamic `TacProgram` with seven tagged instruction kinds: assignment, unary, binary, print, label, unconditional jump, and conditional-false jump; copied result/operator/operand/label strings; safe destruction and explicit statuses
 - expression lowering in deterministic left-to-right AST order; literals/identifiers as direct operands; one lowest-available `t1`, `t2`, ... result per unary/binary node; counter reset per generation
 - pre-emission reservation of every unqualified global declaration name, including later declarations, so compiler temporaries cannot collide with legal source storage names
 - assignment and identifier print spelling; initialized-declaration expression then final store; no TAC for plain declarations or empty blocks
 - all arithmetic, relational, equality, and logical operators; materialized Boolean values with no short-circuit or optimization
 - reusable symbol-table resolution plus `name@scope-id` nested storage names; initializer-before-inner-binding, restoration, and sibling isolation
-- semantic-success phase gate; no TAC for invalid input; explicit unsupported/no-partial result for M7 control-flow ASTs
-- 14 direct unit checks, 12 integration cases, repeated output, and exact TAC/error/exit goldens
-- M8 remaining work: deterministic labels and conditional/unconditional jumps for `if`, `if-else`, and `while`
+- `.L1`, `.L2`, ... label namespace, independent per-generation temporary/label counters, and structural label/jump printing that cannot collide with legal source `L1`
+- exact `if`, `if-else`, and `while` lowering; loop-start label precedes condition-expression TAC so back edges recompute the condition
+- control-node versus block-scope boundary, nested control flow in both directions, sibling branch isolation, loop/branch shadowing, and outer restoration
+- semantic-success phase gate; no TAC for invalid input; allocation/corrupt-node failure returns no partial program
+- 17 direct unit checks, 20 integration cases, repeated output, and exact TAC/error/exit goldens
 - M9 remaining work: final driver with complete AST/TAC output contract and full source-to-TAC demo
 
 ## 11. Challenges and Solutions

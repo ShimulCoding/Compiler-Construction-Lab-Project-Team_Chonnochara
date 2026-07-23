@@ -3,7 +3,7 @@
 Sources compared:
 
 1. `Compiler Construction Lab Project Manual.pdf` (highest authority, read completely on 21 July 2026)
-2. Current committed baseline at `4f302dc` plus the uncommitted M7 working tree
+2. Current committed baseline at `3386ba1` plus the uncommitted M8 working tree
 3. Team Chonnochara Codex master project instruction
 
 Status meanings: **Complete** = verified evidence exists; **Complete (documented)** = the governing constraint is recorded but does not imply implementation; **Partial** = illustrative/incomplete evidence only; **Missing** or **Missing implementation** = no required implementation/evidence; **Pending decision/environment** = a contract or prerequisite must be settled; **Ongoing** = continuous team duty; **Optional** = not required.
@@ -13,18 +13,18 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Requirement | Source | Status | Evidence / action |
 | --- | --- | --- | --- |
 | Fixed instructor-defined language | Manual §§3, 5 | Complete (documented) | Minimal accepted contract is in `AGENTS.md` and `docs/LANGUAGE_SPEC.md` |
-| Six required front-end/TAC modules | Manual §4 | Partial | Lexer, parser, AST, symbol table, and semantics are pushed; M7 implements non-control-flow TAC, while M8 control flow and the final driver remain |
+| Six required front-end/TAC modules | Manual §4 | Complete at library/test-driver level | Lexer through semantics are pushed; M8 implements every mandatory TAC form, while the production driver remains M9 |
 | TAC is final required output | Manual §§4.6, 6 | Complete (documented) | Scope recorded; no backend planned |
 | No mandatory backend, assembly, register allocation, linking, optimization, executable generation, or instruction scheduling | Manual §6 | Complete (documented) | Prohibited before core completion; optional optimization only after all mandatory work |
 | C or C++ with Flex/Bison | Manual §§7, FAQ | Complete (environment) | Verified C11/Flex/Bison/GCC/Make toolchain on Ubuntu 24.04.4 LTS under WSL2 |
 | GNU Make single-command build | Manual §§7-8 | Partial | The `Makefile` builds every existing front-end/TAC component and phase test; the final compiler target remains M9 |
 | Clean professional structure | Manual §8 | Partial | `src/common`, `src/ast`, `src/parser`, `src/lexer`, `src/symbol_table`, `src/semantic`, fixtures, and focused expected/support infrastructure exist; codegen is added with its implementation |
-| Generated files excluded where practical | Manual §8 | Complete (M7 working tree) | Generated objects, executables, Bison/Flex output, and routine test results stay under ignored `/build/` |
+| Generated files excluded where practical | Manual §8 | Complete (M8 working tree) | Generated objects, executables, Bison/Flex output, and routine test results stay under ignored `/build/` |
 | Shared public GitHub fork | Manual §9, FAQ | Complete | Team fork exists under `ShimulCoding` |
-| Regular meaningful commits from every member | Manual §9 | Complete through M6 | Meaningful reviewed M1-M6 commits are pushed; Dipro's M7 remains uncommitted pending review |
+| Regular meaningful commits from every member | Manual §9 | Complete through M7 | Meaningful reviewed M1-M7 commits are pushed; Mehedi's M8 remains uncommitted pending review |
 | AI-assisted work understood by every member | Manual §10 | Ongoing | Must be verified through review/viva preparation |
 | Original work and external citations | Manual §17 | Ongoing | Record references as development proceeds |
-| Readable code with appropriate explanatory comments | Manual §§1, 17 | Partial | AST C, Flex, Bison grammar/actions, symbol-table/semantic/TAC C, and phase-test code are modular and warning-clean; control-flow TAC/CLI remain |
+| Readable code with appropriate explanatory comments | Manual §§1, 17 | Partial | AST C, Flex, Bison grammar/actions, symbol-table/semantic/TAC C, and phase-test code are modular and warning-clean; the production CLI remains |
 | Strict 31 July 2026 deadline | Manual §16 | Complete (documented) | Roadmap targets 30 July freeze |
 
 ## Fixed lexical and syntactic language
@@ -77,27 +77,27 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Invalid assignment detection | Complete (M6 pushed) | Exact incompatible standalone assignment matches `SEM_INVALID_ASSIGNMENT` |
 | Invalid expression/operator detection | Complete (M6 pushed) | Arithmetic, remainder, logical/not, and relational operand fixtures match `SEM_INVALID_OPERATOR` |
 | Line-aware human-readable semantic errors | Complete (M6 pushed) | Twenty invalid cases match exact source-ordered stderr/exit goldens |
-| TAC assignment and arithmetic | Complete (M7 working tree) | Exact goldens show direct assignments and left-to-right temporary lowering for `+ - * / %` |
-| TAC initialized declaration | Complete (M7 working tree) | Initializer-expression temporaries precede the storage assignment; plain declarations emit none |
-| TAC relational and logical expressions | Complete (M7 working tree) | Exact golden covers `< > <= >= == != && || !` with materialized Boolean temporaries |
-| TAC `if`, `if-else`, `while` | Missing | Label/jump goldens |
-| TAC `print` | Complete (M7 working tree) | Global and scope-qualified identifier print instructions match exact goldens |
-| TAC respects precedence | Complete (M7 working tree) | Nested and non-trivial parser-to-semantic-to-TAC goldens prove AST-driven ordering |
+| TAC assignment and arithmetic | Complete (M8 regression) | Exact goldens preserve direct assignments and left-to-right temporary lowering for `+ - * / %` |
+| TAC initialized declaration | Complete (M8 regression) | Initializer-expression temporaries precede the storage assignment; plain declarations emit none |
+| TAC relational and logical expressions | Complete (M8 regression) | Exact goldens cover `< > <= >= == != && || !` with materialized Boolean temporaries |
+| TAC `if`, `if-else`, `while` | Complete (M8 working tree) | Structural `.L<n>` labels and exact conditional/unconditional jump goldens cover simple, nested, empty, and expression conditions |
+| TAC `print` | Complete (M8 regression) | Global and scope-qualified identifier print instructions match inside and outside control flow |
+| TAC respects precedence | Complete (M8 working tree) | Expression and loop-condition goldens prove AST-driven ordering, including reevaluation after the loop-start label |
 
 ## Testing and quality evidence
 
 | Requirement | Status | Current evidence / action |
 | --- | --- | --- |
-| Non-trivial valid source reaches TAC | Partial (M7) | A non-control-flow source reaches exact TAC; the manual's full control-flow success remains M8 |
+| Non-trivial valid source reaches TAC | Complete at test-driver level (M8) | `full_control_flow.mc` reaches exact while plus if-else TAC; the production CLI remains M9 |
 | Lexical error test | Complete (M3 lexer) | Runnable invalid-character and malformed-number fixtures have exact stderr/exit goldens |
 | Syntax error test | Complete (M4 parser) | Fifteen isolated syntax fixtures plus two recovery cases and two lexical/parser integration cases have exact stderr/exit evidence |
 | Separate test for every six semantic rules | Complete (M6 pushed) | Isolated executable fixtures cover undeclared, redeclaration, scope violation, type mismatch, invalid assignment, and invalid operator |
 | Every input paired with expected/actual output | Partial | Invalid semantic cases now have exact tracked stderr/exit plus ephemeral actual results; TAC/end-to-end evidence remains |
 | Executable test fixtures | Partial | Lexer/parser/semantic `.mc` fixtures plus one `.txt` and generated CRLF coverage run automatically; TAC/end-to-end fixtures remain |
-| Automated test command | Partial | `make test` validates the header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 14 TAC unit, and 12 TAC integration cases; M8/final CLI remain |
+| Automated test command | Partial | `make test` validates the header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 17 TAC unit, and 20 TAC integration cases; final CLI/release evidence remain |
 | Full type/literal/operator coverage | Partial | Lexical/parser coverage is complete and M6 validates every operator family, mixed numeric promotion, and representative exact storage combinations including rejected numeric conversion; exhaustive nine-cell and TAC coverage remain |
 | Scope/control-flow integration coverage | Complete through semantics | Parser-built standalone/control/nested/sibling blocks pass semantic scope, shadowing, restoration, condition, and history tests |
-| AST and TAC golden output | Partial | Direct-construction/seven parser-built AST goldens plus nine valid M7 TAC goldens pass; control-flow TAC goldens remain M8 |
+| AST and TAC golden output | Complete through TAC library | Direct/seven parser-built AST goldens plus 19 valid TAC goldens cover expressions, scopes, and mandatory control flow |
 | Build/run/error screenshots | Missing | Final-deliverable task |
 | Clean-environment validation | Missing | M16 exit criterion |
 
@@ -106,18 +106,18 @@ Status meanings: **Complete** = verified evidence exists; **Complete (documented
 | Deliverable | Status | Current evidence / action |
 | --- | --- | --- |
 | Team project README with exact build/run instructions | Missing | Inherited template README is generic and mojibaked in places |
-| Complete buildable source | Partial | Front-end plus M7 non-control-flow TAC and phase tests are buildable; control-flow TAC/final driver remain |
+| Complete buildable source | Partial | Front-end plus complete mandatory TAC library and phase tests are buildable; the production driver remains |
 | Formal CFG in report | Missing | M1 then report integration |
 | Project report with manual chapter structure | Partial | `REPORT_OUTLINE.md` initialized; content/evidence pending |
-| Architecture/module interaction documentation | Partial | AST through M7 TAC, scope-safe storage naming, ownership, gates, dependencies, and tests are documented; M8 control flow/CLI remain |
+| Architecture/module interaction documentation | Partial | AST through M8 TAC, scope-safe storage, labels/jumps, ownership, gates, dependencies, and tests are documented; production CLI remains |
 | Presentation slides | Missing | Notes skeleton only |
 | Valid and invalid sample programs | Partial | Executable phase fixtures exist; final curated source-to-TAC examples remain |
-| Sample outputs | Partial | Phase goldens exist; final compiler/TAC output remains missing |
+| Sample outputs | Partial | Exact phase and full-language TAC goldens exist; final production compiler output remains missing |
 | Screenshots | Missing | Capture after stable integration |
-| Exact compilation/execution instructions | Partial | `make`, `make test`, and `make clean` work through M6; temporary phase tests are documented, while the final compiler command awaits integration |
+| Exact compilation/execution instructions | Partial | `make`, `make test`, and `make clean` validate the M8 library/test-driver pipeline; the final compiler command awaits integration |
 | Live valid and invalid demonstration | Missing | Demo sequence planned, compiler absent |
-| Lexical, syntax, semantic, and TAC demonstrations | Partial | Test-only lexical/syntax/semantic/TAC executables exist; control-flow/final CLI demo remains missing |
-| Individual viva preparation | Partial | AST/build, Flex, Bison, symbol table, semantics, and M7 expression/statement TAC are documented; M8/CLI remain |
+| Lexical, syntax, semantic, and TAC demonstrations | Partial | Test-only executables now demonstrate complete control-flow TAC; final CLI/live-demo packaging remains |
+| Individual viva preparation | Partial | AST/build, Flex, Bison, symbol table, semantics, and complete M8 TAC are documented; final CLI/release topics remain |
 | Optional video | Optional | Consider only after mandatory deliverables |
 
 ## Evaluation priority awareness

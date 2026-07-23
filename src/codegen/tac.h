@@ -19,7 +19,10 @@ typedef enum {
     TAC_INSTRUCTION_ASSIGNMENT,
     TAC_INSTRUCTION_UNARY,
     TAC_INSTRUCTION_BINARY,
-    TAC_INSTRUCTION_PRINT
+    TAC_INSTRUCTION_PRINT,
+    TAC_INSTRUCTION_LABEL,
+    TAC_INSTRUCTION_JUMP,
+    TAC_INSTRUCTION_JUMP_IF_FALSE
 } TacInstructionKind;
 
 typedef struct {
@@ -28,6 +31,7 @@ typedef struct {
     char *operator_text;
     char *first_operand;
     char *second_operand;
+    char *label;
 } TacInstruction;
 
 typedef struct {
@@ -37,9 +41,9 @@ typedef struct {
 } TacProgram;
 
 /*
- * Generates deterministic non-control-flow TAC from a semantically valid AST.
- * The AST is borrowed. On success, out_program receives an owned TAC program.
- * Its instruction fields are read-only to callers. On failure, out_program is
+ * Generates deterministic TAC from a semantically valid AST. The AST is
+ * borrowed. On success, out_program receives an owned TAC program. Its
+ * instruction fields are read-only to callers. On failure, out_program is
  * NULL and no partial program is returned.
  */
 TacStatus tac_generate(const AstNode *program, TacProgram **out_program);

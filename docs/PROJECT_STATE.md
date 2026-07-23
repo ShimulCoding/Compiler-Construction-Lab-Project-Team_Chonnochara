@@ -4,14 +4,14 @@ Last updated: 24 July 2026 (Asia/Dhaka)
 
 ## Executive status
 
-- **Stage:** M1-M6 are committed and pushed. M7 expression/statement TAC generation, tests, and documentation are implemented and validated in the working tree, pending Dipro's review and commit approval.
-- **Implementation:** The C11/AST foundation, mandatory lexer/parser-to-AST path, nested-scope symbol table, semantic analyzer, and non-control-flow TAC generator now exist. M8 control-flow lowering and the final compiler driver do not exist; drivers under `tests/support/` remain test-only.
-- **Integration:** The M7 test path is source -> lexer -> parser -> AST -> semantic gate -> TAC. Valid declarations, expressions, assignments, blocks, and print produce deterministic TAC; `if`/`while` return an explicit unsupported status until M8.
+- **Stage:** M1-M7 are committed and pushed. M8 control-flow TAC generation, tests, and documentation are implemented and validated in the working tree, pending Mehedi's review and commit approval.
+- **Implementation:** The C11/AST foundation, mandatory lexer/parser-to-AST path, nested-scope symbol table, semantic analyzer, and complete mandatory TAC library now exist. The final production compiler driver does not exist; drivers under `tests/support/` remain test-only.
+- **Integration:** The test path is source -> lexer -> parser -> AST -> semantic gate -> TAC. Semantically valid declarations, expressions, assignments, blocks, print, `if`, `if-else`, and `while` produce deterministic TAC with structural labels and jumps.
 - **Build:** `make`, `make test`, and `make clean` work under the verified Ubuntu 24.04 WSL2 environment. Bison conflict warnings are treated as build errors, and generated files remain under ignored `build/`.
-- **Tests:** The current suite passes the generated-header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases with exact goldens/exits.
+- **Tests:** The current suite passes the generated-header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 17 TAC unit tests, and 20 TAC integration cases with exact goldens/exits.
 - **Deadline:** 31 July 2026, no extensions. Target release freeze: 30 July 2026.
-- **Immediate next task:** Dipro reviews the M7 TAC API, ownership, expression order, scope-qualified storage names, semantic gate, and exact goldens before any staging or commit.
-- **Next Intended Contributor:** **Dipro**.
+- **Immediate next task:** Mehedi reviews M8 label/jump ownership, exact `if`/`if-else`/`while` lowering, loop-condition placement, nested-scope behavior, and exact goldens before any staging or commit.
+- **Next Intended Contributor:** **Mehedi**.
 
 The initialization and M1 documents describe audited facts and the finalized technical contract. They do not prove compiler implementation or functional test completion.
 
@@ -47,7 +47,7 @@ Do not count inherited commits or this Codex-assisted audit as a team-member con
 | Bison parser | Complete approved CFG, semantic values/locations, AST actions, diagnostics/recovery, and focused parser goldens | M4 completed, validated, and accepted by Mehedi |
 | Symbol table | Scope records, stable symbol records, current/active/history lookup, monotonic IDs, printer, cleanup, and focused golden tests | M5 committed and pushed by Shimul as `1f319c6` |
 | Semantic analyzer | Source-order AST traversal, nested scopes, name/type/operator/context rules, deterministic diagnostics, and focused integration goldens | M6 committed and pushed by Nayem as `4f302dc` |
-| TAC generator | Owned instruction list, deterministic temporaries/printer, expressions, declaration/assignment/print, and scope-safe block bindings | M7 implemented and validated; pending Dipro review/approval |
+| TAC generator | Owned instruction list, deterministic temporaries/labels/printer, all required expressions/statements/control flow, and scope-safe bindings | M7 pushed as `3386ba1`; M8 implemented and validated, pending Mehedi review/approval |
 
 The README explicitly identifies the baseline as a template with no compiler solution. Its tree diagram is visibly mojibaked in the current checkout and its generic build/run commands do not describe an implemented program.
 
@@ -60,9 +60,9 @@ The README explicitly identifies the baseline as a template with no compiler sol
 | AST | M2 completed | `src/ast/ast.h`, `ast.c`, and `ast_print.c` provide all mandatory AST shapes, source lines, ownership, cleanup, and deterministic printing |
 | Symbol table | M5 completed | `src/symbol_table/` stores name/type/location/scope metadata, manages global/nested scopes, preserves inactive history, and passes 30 direct unit tests |
 | Semantic analyzer | M6 completed | `src/semantic/` walks parser-built ASTs, enforces the approved name/scope/type/operator/context rules, and passes 26 exact integration cases |
-| TAC generator | M7 implemented/validated, pending review | `src/codegen/tac.*` emits deterministic non-control-flow TAC and passes 14 unit plus 12 integration cases; labels/jumps remain M8 |
+| TAC generator | M8 implemented/validated, pending review | `src/codegen/tac.*` emits all mandatory TAC forms with `.L1` labels, conditional/unconditional jumps, and 17 unit plus 20 integration cases |
 | Driver/integration | Missing | No CLI, phase sequencing, exit-code policy, or executable |
-| Build/test automation | M7 expansion implemented | `make`, `make test`, and `make clean` build TAC unit/integration tests while preserving all M2-M6 suites |
+| Build/test automation | M8 expansion implemented | `make`, `make test`, and `make clean` build complete TAC unit/integration tests while preserving all M2-M7 behavior |
 
 ## Build and environment status
 
@@ -79,15 +79,15 @@ Windows remains the canonical editing/Git worktree. WSL performs builds and test
 
 ## Test status and known coverage gaps
 
-- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 30/30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases.
+- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 30/30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 17 TAC unit tests, and 20 TAC integration cases.
 - Lexer coverage includes all 32 token kinds, lowercase keyword versus identifier boundaries, compact overlapping operators, exact integer/float forms, spaces/tabs/blank lines, code followed by comments, LF and generated CRLF input, the complete Section 5.5 sample, unsupported block-comment behavior, invalid characters, and leading-dot/trailing-dot/exponent numeric rejection.
 - Recursive destruction executed successfully for nested trees; memory-leak verification remains unperformed because no leak-analysis package was approved or installed.
 - The inherited Markdown sketches remain reference material rather than direct fixtures, but executable phase fixtures now cover lexical, syntax, AST, symbol-table, and semantic behavior.
 - Semantic coverage includes all approved diagnostic categories, name history, declaration-point visibility, shadowing/restoration, sibling isolation, initialized-declaration cascade policy, all operator families, exact storage compatibility, Boolean conditions, valid print lookup, and multiple independent errors.
 - The M6 test driver intentionally produces no stdout and returns status 3 for semantic failure. It is not the final compiler driver.
-- M7 goldens cover all required expression operators, direct operands, initialized/plain declarations, assignment, print, source-order blocks, nested shadowing, outer restoration, sibling isolation, and initializer-before-binding resolution.
-- M7 reserves all direct global declaration names before emission and skips them while allocating `t1`, `t2`, ... temporaries, including declarations that occur later in source order.
-- Remaining functional gaps are M8 `if`/`if-else`/`while` labels and jumps, the final CLI, and complete control-flow source-to-TAC evidence.
+- M7 goldens remain unchanged for all expression operators, direct operands, initialized/plain declarations, assignment, print, source-order blocks, nested shadowing, outer restoration, sibling isolation, initializer-before-binding resolution, and collision-safe temporaries.
+- M8 goldens add simple/expression `if`, `if-else`, `while`, condition reevaluation after loop-start labels, nested control flow in both directions, sequential/empty control blocks, branch/loop shadowing and restoration, source identifier `L1` versus label `.L1`, and a full-language control-flow program.
+- Remaining functional gaps are the final production CLI, end-to-end `AST:`/`TAC:` output integration, README/deliverables, expanded final evidence, and release QA.
 - The M4 integration requirement is implemented: the lexer reports `LEX_INVALID_TOKEN` and returns `YYUNDEF`; the parser suppresses the matching generic syntax report but still reports a later independent syntax error after recovery.
 - The mixed-invalid example crosses lexical/syntax/semantic concerns and is unsuitable as an isolated oracle; retain it only as a later recovery stress test.
 
@@ -110,8 +110,8 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 ## Known risks
 
 - The audit began ten days before the 31 July deadline, leaving no schedule slack beyond the planned 30 July freeze.
-- The lexer/parser/AST/symbol-table/semantic path is complete, but control-flow TAC and the final driver remain on the critical path with little schedule slack.
-- M1-M6 are genuine reviewed and pushed milestones; M7 remains uncommitted until Dipro reviews and accepts responsibility.
+- The mandatory compiler libraries now reach complete TAC, but the final driver and deliverables remain on the critical path with little schedule slack.
+- M1-M7 are genuine reviewed and pushed milestones; M8 remains uncommitted until Mehedi reviews and accepts responsibility.
 - Temporary/global-name collisions are covered: the generator pre-reserves every unqualified global storage name, while nested `name@scope-id` storage remains distinct.
 - The inherited README still describes the instructor template rather than Team Chonnochara's implementation.
 - The fork is one README commit behind the instructor repository; review that upstream change before deciding whether to merge it.
@@ -119,11 +119,11 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 
 ## Current development stage and next action
 
-M1-M6 are committed and pushed. M7 implementation and validation are complete but uncommitted. The handoff is:
+M1-M7 are committed and pushed. M8 implementation and validation are complete but uncommitted. The handoff is:
 
-1. Dipro reviews `tac_generate`, the tagged instruction list, copied operands, left-to-right lowering, temporary reset, and binding-to-storage-name mapping.
-2. Do not stage, commit, push, or begin M8 until the user explicitly approves the next action.
-3. Keep **Dipro** as the next intended contributor until the genuine M7 contribution is reviewed, approved, and committed.
-4. After an approved M7 commit, advance the cycle to Mehedi for control-flow TAC.
+1. Mehedi reviews the three structural control instruction kinds, `.L1` namespace, label reset, exact branch/loop ordering, and one-scope-per-AST-block behavior.
+2. Do not stage, commit, push, or begin M9 until the user explicitly approves the next action.
+3. Keep **Mehedi** as the next intended contributor until the genuine M8 contribution is reviewed, approved, and committed.
+4. After an approved M8 commit, advance the cycle to Shimul for the final production driver.
 
-M7 generates TAC only for non-control-flow statements. The manual's complete TAC requirement is still incomplete until M8 adds labels and jumps and later integration provides the final driver.
+M8 completes the manual's mandatory TAC forms at the library/test-driver level. The overall project is not complete until M9 integrates the production compiler CLI and later milestones finish end-to-end evidence, documentation, demonstration material, and release validation.

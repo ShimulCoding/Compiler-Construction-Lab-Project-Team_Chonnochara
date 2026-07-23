@@ -1,6 +1,6 @@
 # Mandatory Language Contract
 
-Status: **M1 contract approved and recorded. M3 implements lexical analysis, M4 implements syntax/AST construction, and the M6 working tree implements the semantic contract. TAC remains unimplemented.**
+Status: **M1 contract approved and recorded. M3 implements lexical analysis, M4 implements syntax/AST construction, and M6 implements the semantic contract. TAC generation is implemented for expressions, initialized declarations, assignments, print, `if`, `if-else`, and `while` at the library/test-driver level. The production compiler CLI and final integration remain pending.**
 
 Authority: `Compiler Construction Lab Project Manual.pdf`, with Section 5 controlling whenever another manual example is ambiguous. This document intentionally accepts the smallest language that satisfies the manual. `docs/GRAMMAR.md` is the formal syntax companion.
 

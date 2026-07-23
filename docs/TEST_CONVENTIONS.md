@@ -1,6 +1,6 @@
 # Test, Input, and Output Conventions
 
-Status: **M1 conventions approved. M7 adds exact non-control-flow TAC fixtures/goldens to the M2-M6 runner; control-flow TAC and the final compiler driver do not yet exist.**
+Status: **M1 conventions approved. M8 adds exact mandatory control-flow TAC fixtures/goldens to the M2-M7 runner; the final production compiler driver does not yet exist.**
 
 These conventions make later phase tests deterministic while satisfying the manual's expected/actual-output requirement.
 
@@ -44,13 +44,13 @@ M6 adds a third temporary phase-test command:
 
 It parses one file and runs semantic analysis only after parser success. A semantically valid input exits 0 with empty stdout/stderr. Semantic diagnostics go to stderr in source order, keep stdout empty, and produce exit 3. Lexical/syntax failures retain their earlier phase statuses. Usage, I/O, or internal failures exit 4. This is integration-test infrastructure, not the final TAC compiler.
 
-M7 adds a fourth temporary phase-test command:
+M7/M8 provide a fourth temporary phase-test command:
 
 ```text
 ./build/tac_test <source-file>
 ```
 
-It runs parser -> semantic analysis -> non-control-flow TAC. Success prints only one TAC instruction per line and exits 0. Semantic failure preserves the M6 diagnostics/status and prints no TAC. An `if` or `while` reaches the explicit M7 `TAC_UNSUPPORTED_NODE` path, prints no partial TAC, and the test-only driver exits 4; M8 replaces this deferral with labels/jumps. This is not the final compiler driver.
+It runs parser -> semantic analysis -> complete mandatory TAC. Success prints only one TAC instruction or label per line and exits 0. Semantic failure preserves the M6 diagnostics/status and prints no TAC. Internal generation/printing failure exits 4 with no authoritative partial output. This remains test infrastructure, not the final compiler driver.
 
 ## 2. Successful output
 
@@ -65,11 +65,11 @@ TAC:
 
 - Standard error is empty.
 - Exit status is `0`.
-- Temporary names start at `t1` and labels at `L1` for each compiler invocation.
+- Temporary names start at the lowest available `t1` and labels at `.L1` for each compiler invocation.
 - Node/statement ordering follows source order.
 - No memory addresses, platform paths, timestamps, or nondeterministic values appear in golden output.
 
-M7 locks assignment/unary/binary/print TAC spelling. M8 still locks label and jump spelling; M9 integrates the `AST:`/`TAC:` headings in the final driver.
+M7 locks assignment/unary/binary/print spelling. M8 locks labels as `.L<n>:`, unconditional jumps as `goto .L<n>`, and conditional jumps as `ifFalse <operand> goto .L<n>`. M9 integrates the `AST:`/`TAC:` headings in the final driver.
 
 ## 3. Failure output and exit status
 
@@ -172,7 +172,7 @@ Case basenames must be unique across the suite. Suggested form is `<phase>_<feat
 
 ## 8. Automated command contract
 
-M2 established the runner, M3/M4 expanded it through parsing, M5 added symbol-table tests, M6 added semantics, and M7 now validates:
+M2 established the runner, M3/M4 expanded it through parsing, M5 added symbol-table tests, M6 added semantics, M7 added expression/statement TAC, and M8 now validates complete control-flow TAC:
 
 ```text
 make
@@ -180,13 +180,13 @@ make test
 make clean
 ```
 
-- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests, 30 direct symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests twice for determinism, and 12 TAC integration cases.
+- `make test` builds first, validates the generated Bison token header, runs 15 direct-construction AST tests, 30 direct symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 17 TAC unit tests twice for determinism, and 20 TAC integration cases.
 - Symbol-table cases cover global/nested/sibling scopes, monotonic IDs/depths, declaration metadata/order, current/active/history lookup, duplicates, shadowing/restoration, inactive-versus-never-declared evidence, ownership, cleanup execution, and deterministic address-free printing. They do not claim AST semantic traversal or `SEM_...` diagnostics.
 - The lexer cases cover all 32 tokens, identifier/keyword boundaries, compact longest-match operators, whitespace, blank lines, code-before-comment and full-line comments, LF and generated CRLF input, the official sample, unsupported block-comment behavior, invalid characters, and malformed numeric spellings.
 - Parser cases cover every required statement, all 14 operators, precedence/non-associativity, the manual initialized-declaration example, standalone/empty/nested blocks, the official sample, seven parser-built AST goldens, LF/generated-CRLF lines, required unsupported forms, semicolon/closing-brace recovery, and lexical/syntax diagnostic separation.
 - Semantic cases cover valid declarations/assignments/print/control flow; numeric promotion; shadowing, outer restoration, sibling isolation, and inactive history; initializer visibility/insertion/cascade behavior; all approved operator/context/storage rules; all six diagnostic families; exact line/code/message/status goldens; and deterministic multiple-error order.
-- TAC cases cover all expression operators, direct literal/identifier operands, readable numeric/Boolean formatting, initialized/plain declarations, assignment, print, precedence and left-to-right lowering, empty/standalone/nested blocks, scope-qualified shadows, restoration/sibling isolation, initializer-before-binding, global/temporary collisions before and after use, initialized `t1`, per-run counter reset, repeated output, semantic gating, and explicit `if`/`while` deferral.
+- TAC cases preserve all M7 expression/storage coverage and add simple/expression `if`, `if-else`, `while`, start-label-before-condition placement, nested control flow in both directions, sequential and empty control blocks, branch/loop shadowing and restoration, sibling branch isolation, direct identifier/literal conditions, legal source `L1` beside generated `.L1`, both counter resets, repeated output, and semantic gating.
 - The POSIX test runner quotes paths because the Windows-mounted repository path contains spaces, normalizes tracked CRLF-sensitive goldens, and creates temporary CRLF input only under ignored `build/test-results/`.
 - `make clean` removes only generated content under `build/`; it never deletes tracked expected or curated actual evidence.
 
-Verified M7 commands: `make clean`, `make`, `make test`, and final `make clean` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because control-flow TAC and the final driver do not yet exist.
+Verified M8 commands: `bash -n tests/run_tests.sh`, `make clean`, `make`, `make test`, and final `make clean` under Ubuntu 24.04.4 LTS on WSL2. The full compiler command remains unavailable because the production driver is still M9.

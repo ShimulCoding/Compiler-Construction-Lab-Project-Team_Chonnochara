@@ -164,7 +164,26 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Technical decisions:** Direct literal/identifier operands emit no instruction; unary/binary operations materialize the lowest available `tN` after reserving every unqualified global name; plain declarations and empty blocks emit nothing; float operands use readable `%.15g` formatting with `.0` retained for integral floating values; logical values are materialized rather than short-circuited.
 - **Tests/commands:** WSL Bash syntax validation followed by `make clean`, `make`, `make test`, `make clean`, and explicit absence check for `build/`; Windows Git diff/whitespace/artifact checks.
 - **Result:** Final validation passed 14 TAC unit tests and 12 TAC integration cases plus every prior suite: generated header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, and 26 semantic. Collision goldens cover global `t1` before use, after use, and as an initialized declaration. Bison reported zero conflicts, GCC/Flex/Bison emitted no actionable warnings, and final cleanup removed `build/`.
-- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Dipro review: `Dipro: Generated TAC for expressions and statements`.
+- **Git handling:** Committed and pushed as `3386ba1676f33dec81ee5a45b99fa96fdc7cfa2d` with message `Dipro: Generated TAC for expressions and statements` after separate approvals.
+
+## 24 July 2026 — M8 control-flow TAC generation
+
+- **Intended contributor/owner:** Mehedi. Implementation and validation are prepared for review; ownership and a Git commit remain pending explicit approval.
+- **Task:** Complete mandatory TAC generation for `if`, `if-else`, `while`, and nested control flow by extending—not replacing—the M7 instruction model.
+- **Files implemented:** Extended `src/codegen/tac.h`, `src/codegen/tac.c`, `tests/unit/test_tac.c`, `tests/support/tac_driver.c`, control-flow sources under `tests/tac/valid/`, and exact TAC goldens under `tests/expected/tac/`.
+- **Supporting changes:** Expanded `tests/run_tests.sh`, converted the former unsupported `if`/`while` fixtures to passing cases, removed their obsolete error expectations, and updated only the approved M8 project-memory documents.
+- **Implemented:**
+  - structural label, unconditional-jump, and conditional-false-jump instruction kinds with copied label ownership and deterministic printing;
+  - per-generation `.L1`, `.L2`, ... allocation, using a dot-prefixed namespace that cannot collide with legal source identifiers and resetting alongside temporary/scope state;
+  - canonical `if` and `if-else` lowering with false/end labels, plus `while` lowering whose start label precedes all condition-expression TAC;
+  - nested control flow with one code-generation scope per AST block, no extra scope for the control node, sibling branch isolation, outer restoration, and unchanged `name@scope-id` storage;
+  - unchanged materialized logical-expression TAC, semantic-success gating, temporary/global collision avoidance, and no optimization or short-circuit rewrite; and
+  - explicit internal failure with no returned partial program for corrupt/unknown statement kinds, while all valid current control nodes now generate successfully.
+- **Why:** The manual requires labels plus conditional/unconditional jumps for `if`, `if-else`, and `while`; M8 completes that mandatory TAC library surface before the final production CLI is integrated.
+- **Technical decisions:** Labels are structural instructions stored in a dedicated owned field and print as `.L<n>:`. Jumps print `goto .L<n>` or `ifFalse operand goto .L<n>`. Label allocation follows AST traversal, and the loop start is emitted before condition lowering so runtime back edges reevaluate every condition temporary.
+- **Tests/commands:** Bash syntax validation; focused clean TAC build; integrated `make test`; final required clean/build/test/clean sequence and Windows Git integrity review.
+- **Result:** The latest integrated run passed 17 TAC unit tests and 20 TAC integration cases plus the generated-header check, 15 AST, 30 symbol-table, 10 lexer, 32 parser, and 26 semantic cases. GCC/Flex/Bison emitted no actionable warning and Bison reported zero conflicts.
+- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Mehedi review: `Mehedi: Integrated control-flow TAC generation`.
 
 ## Entry template
 

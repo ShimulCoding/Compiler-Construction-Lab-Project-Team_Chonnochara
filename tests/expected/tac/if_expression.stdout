@@ -1,0 +1,10 @@
+x = 1
+y = 2
+enabled = true
+t1 = x < y
+t2 = enabled && t1
+ifFalse t2 goto .L1
+t3 = x + 1
+x = t3
+print x
+.L1:

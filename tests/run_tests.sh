@@ -529,7 +529,7 @@ if ! cmp -s "$tac_unit_stdout" "$tac_unit_repeat_stdout"; then
     exit 1
 fi
 
-printf '%s\n' 'PASS: 14 TAC unit tests and repeated deterministic output'
+printf '%s\n' 'PASS: 17 TAC unit tests and repeated deterministic output'
 
 run_tac_success()
 {
@@ -611,7 +611,17 @@ for tac_case in \
     nontrivial \
     temporary_collision_before \
     temporary_collision_after \
-    temporary_collision_initialized
+    temporary_collision_initialized \
+    if \
+    if_expression \
+    if_else \
+    while \
+    while_expression \
+    nested_control_flow \
+    sequential_control \
+    control_scopes \
+    label_namespace \
+    full_control_flow
 do
     run_tac_success \
         "$tac_case" \
@@ -654,22 +664,28 @@ if [ -s "$tac_collision_repeat_stderr" ] \
     exit 1
 fi
 
+control_repeat_stdout="$result_directory/tac_full_control_flow.repeat.stdout"
+control_repeat_stderr="$result_directory/tac_full_control_flow.repeat.stderr"
+if ! "$tac_binary" \
+    "$repository_root/tests/tac/valid/full_control_flow.mc" \
+    >"$control_repeat_stdout" 2>"$control_repeat_stderr"; then
+    printf '%s\n' 'FAIL: repeated control-flow TAC generation returned nonzero' >&2
+    cat "$control_repeat_stderr" >&2
+    exit 1
+fi
+if [ -s "$control_repeat_stderr" ] \
+    || ! cmp -s "$result_directory/tac_full_control_flow.stdout" \
+                 "$control_repeat_stdout"; then
+    printf '%s\n' 'FAIL: control-flow TAC changed across repeated generation' >&2
+    diff -u "$result_directory/tac_full_control_flow.stdout" \
+        "$control_repeat_stdout" >&2 || true
+    exit 1
+fi
+
 run_tac_failure \
     semantic_gate \
     "$repository_root/tests/semantic/invalid/undeclared.mc" \
     "$repository_root/tests/expected/semantic/undeclared.stderr" \
     "$repository_root/tests/expected/semantic/undeclared.exit"
 
-run_tac_failure \
-    unsupported_if \
-    "$repository_root/tests/tac/unsupported/if.mc" \
-    "$repository_root/tests/expected/tac/unsupported_control_flow.stderr" \
-    "$repository_root/tests/expected/tac/unsupported_control_flow.exit"
-
-run_tac_failure \
-    unsupported_while \
-    "$repository_root/tests/tac/unsupported/while.mc" \
-    "$repository_root/tests/expected/tac/unsupported_control_flow.stderr" \
-    "$repository_root/tests/expected/tac/unsupported_control_flow.exit"
-
-printf '%s\n' 'PASS: 12 TAC integration cases covering expressions, statements, scopes, collision-safe temporaries, semantic gating, goldens, and deferred control flow'
+printf '%s\n' 'PASS: 20 TAC integration cases covering expressions, statements, scopes, collision-safe temporaries, semantic gating, deterministic labels, and nested control flow'

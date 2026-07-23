@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1-M6 decisions are approved, committed, and pushed. M7 decisions below are implemented and validated, pending Dipro's review and approval.
+Status: M1-M7 decisions are approved, committed, and pushed. M8 decisions below are implemented and validated, pending Mehedi's review and approval.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -119,8 +119,19 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-703 | Emit `target = operand` for initialized declarations and assignments, `print storage` for print, and no instruction for plain declarations or empty blocks. Format booleans as `true`/`false` and readable floats with `%.15g`, retaining `.0` for integral float values. | Matches the manual's illustrative TAC and keeps literal spelling deterministic and understandable. |
 | D-704 | Reuse a private `SymbolTable` during generation and associate each returned `Symbol *` with one owned storage name. Global bindings keep source names; non-global bindings use `name@scope-id`. | Distinct storage identities preserve shadowing, sibling isolation, initializer-before-inner-binding behavior, and outer restoration without modifying the AST or duplicating scope rules. |
 | D-705 | Treat `&&`, `||`, and `!` as ordinary value-producing TAC operations in M7. Do not add short-circuit jumps or optimization. | This implements the approved materialized-Boolean strategy; control-flow labels and jumps remain one coherent M8 milestone. |
-| D-706 | Return `TAC_STATUS_UNSUPPORTED_NODE` for `if` or `while` and destroy all partial output. The test driver invokes TAC only after semantic success. | Control-flow ASTs are never silently omitted, invalid programs emit existing semantic diagnostics with no TAC, and M7 does not pretend the manual's full TAC requirement is complete. |
+| D-706 | During M7, return `TAC_STATUS_UNSUPPORTED_NODE` for `if` or `while` and destroy all partial output. The test driver invokes TAC only after semantic success. Superseded for valid control-flow nodes by D-801 through D-806 in M8. | Control-flow ASTs were never silently omitted before M8, invalid programs emit existing semantic diagnostics with no TAC, and the historical M7 boundary remains explicit. |
 | D-707 | Before emission, reserve every direct program-level declaration name and add each allocated temporary to the same per-generation reserved-name set. Skip collisions while scanning `t1`, `t2`, ... upward. | A legal global named `t1` cannot be confused with a compiler temporary, even when declared later in source order. Ordinary names keep existing TAC spelling, while nested `name@scope-id` storage remains inherently distinct. |
+
+## M8 control-flow TAC decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-801 | Extend the existing tagged TAC representation with structural label, unconditional-jump, and conditional-false-jump kinds. Store each control target in a dedicated owned `label` field. | Labels are not assignments or source operands, printer validation stays explicit, and the existing instruction-array ownership model remains intact. |
+| D-802 | Allocate `.L1`, `.L2`, ... monotonically in AST traversal order and reset the counter for every `tac_generate` call. | `.` is illegal in source identifiers, so a legal `L1` variable cannot collide; reset and traversal order make exact output deterministic. |
+| D-803 | Lower `if` as condition, false jump, then-block, end label; lower `if-else` with distinct else/end labels and a jump over the else-block. | This is the smallest conventional TAC that preserves source control flow without optimization or a separate CFG framework. |
+| D-804 | Lower `while` as start label, condition TAC, false exit jump, body, back edge, and exit label. | Placing the start label before condition lowering guarantees that every temporary-producing condition instruction executes again after the back edge. |
+| D-805 | Let only AST block children enter code-generation scopes; control nodes themselves add none. | Matches parser/semantic scope ownership and preserves monotonic scope IDs, branch sibling isolation, loop-body shadowing, and outer restoration. |
+| D-806 | Keep materialized logical TAC and the semantic-success gate unchanged. Valid current-language control nodes now generate successfully; allocation/corrupt-node failure still destroys partial output and returns no program. | M8 completes the manual's TAC surface without duplicating type checking, adding short-circuit semantics, or hiding malformed internal input. |
 
 ## Resolved ambiguity register
 
@@ -141,7 +152,7 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 
 ## Decisions deferred to later milestones
 
-M8 still owns label naming and exact conditional/unconditional jump spelling. M9 owns the final CLI section layout and phase exit integration. M7 resolves the former D-104 instruction-representation question through D-701 to D-706.
+M9 owns the final CLI section layout, phase exit integration, and production source-to-AST/TAC output. Later milestones own expanded evidence, documentation, demonstration assets, and final QA; M8 completes the mandatory TAC library itself.
 
 Deferred decisions must not change the accepted language. Any actual language extension belongs to optional post-core work and requires explicit later approval.
 

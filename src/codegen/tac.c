@@ -21,6 +21,7 @@ typedef struct {
     size_t reserved_name_count;
     size_t reserved_name_capacity;
     size_t next_temporary;
+    size_t next_label;
 } TacContext;
 
 static char *copy_text(const char *text)
@@ -50,6 +51,7 @@ static void instruction_destroy(TacInstruction *instruction)
     free(instruction->operator_text);
     free(instruction->first_operand);
     free(instruction->second_operand);
+    free(instruction->label);
     *instruction = (TacInstruction){0};
 }
 
@@ -128,6 +130,46 @@ static TacStatus append_instruction(TacProgram *program,
         || (operator_text != NULL && instruction.operator_text == NULL)
         || instruction.first_operand == NULL
         || (second_operand != NULL && instruction.second_operand == NULL)) {
+        instruction_destroy(&instruction);
+        return TAC_STATUS_ALLOCATION_FAILURE;
+    }
+
+    if (!grow_instruction_storage(program)) {
+        instruction_destroy(&instruction);
+        return TAC_STATUS_ALLOCATION_FAILURE;
+    }
+
+    program->instructions[program->count++] = instruction;
+    return TAC_STATUS_SUCCESS;
+}
+
+static TacStatus append_control_instruction(
+    TacProgram *program,
+    TacInstructionKind kind,
+    const char *condition_operand,
+    const char *label)
+{
+    TacInstruction instruction = {0};
+
+    if (program == NULL || label == NULL
+        || (kind != TAC_INSTRUCTION_LABEL
+            && kind != TAC_INSTRUCTION_JUMP
+            && kind != TAC_INSTRUCTION_JUMP_IF_FALSE)
+        || (kind == TAC_INSTRUCTION_JUMP_IF_FALSE
+            && condition_operand == NULL)
+        || (kind != TAC_INSTRUCTION_JUMP_IF_FALSE
+            && condition_operand != NULL)) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+
+    instruction.kind = kind;
+    instruction.label = copy_text(label);
+    if (condition_operand != NULL) {
+        instruction.first_operand = copy_text(condition_operand);
+    }
+    if (instruction.label == NULL
+        || (condition_operand != NULL
+            && instruction.first_operand == NULL)) {
         instruction_destroy(&instruction);
         return TAC_STATUS_ALLOCATION_FAILURE;
     }
@@ -404,6 +446,36 @@ static TacStatus make_temporary(TacContext *context, char **out_temporary)
     }
 
     return TAC_STATUS_INTERNAL_ERROR;
+}
+
+static TacStatus make_label(TacContext *context, char **out_label)
+{
+    int required_length;
+    char *label;
+
+    if (out_label == NULL) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+    *out_label = NULL;
+    if (context->next_label == SIZE_MAX) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+
+    required_length = snprintf(
+        NULL, 0, ".L%zu", context->next_label);
+    if (required_length < 0) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+
+    label = malloc((size_t)required_length + 1);
+    if (label == NULL) {
+        return TAC_STATUS_ALLOCATION_FAILURE;
+    }
+    snprintf(label, (size_t)required_length + 1,
+             ".L%zu", context->next_label);
+    context->next_label++;
+    *out_label = label;
+    return TAC_STATUS_SUCCESS;
 }
 
 static char *format_integer(long long value)
@@ -727,6 +799,141 @@ static TacStatus generate_print(TacContext *context,
         NULL, NULL, storage_name, NULL);
 }
 
+static TacStatus generate_if(TacContext *context,
+                             const AstNode *if_statement)
+{
+    const AstNode *then_block =
+        if_statement->data.if_statement.then_block;
+    const AstNode *else_block =
+        if_statement->data.if_statement.else_block;
+    char *condition_operand = NULL;
+    char *false_label = NULL;
+    char *end_label = NULL;
+    TacStatus status;
+
+    if (if_statement->data.if_statement.condition == NULL
+        || then_block == NULL || then_block->kind != AST_NODE_BLOCK
+        || (else_block != NULL && else_block->kind != AST_NODE_BLOCK)) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+
+    status = generate_expression(
+        context,
+        if_statement->data.if_statement.condition,
+        &condition_operand);
+    if (status != TAC_STATUS_SUCCESS) {
+        return status;
+    }
+
+    status = make_label(context, &false_label);
+    if (status == TAC_STATUS_SUCCESS && else_block != NULL) {
+        status = make_label(context, &end_label);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_JUMP_IF_FALSE,
+            condition_operand,
+            false_label);
+    }
+    free(condition_operand);
+
+    if (status == TAC_STATUS_SUCCESS) {
+        status = generate_block(context, then_block);
+    }
+    if (status == TAC_STATUS_SUCCESS && else_block != NULL) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_JUMP,
+            NULL,
+            end_label);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_LABEL,
+            NULL,
+            false_label);
+    }
+    if (status == TAC_STATUS_SUCCESS && else_block != NULL) {
+        status = generate_block(context, else_block);
+    }
+    if (status == TAC_STATUS_SUCCESS && else_block != NULL) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_LABEL,
+            NULL,
+            end_label);
+    }
+
+    free(false_label);
+    free(end_label);
+    return status;
+}
+
+static TacStatus generate_while(TacContext *context,
+                                const AstNode *while_statement)
+{
+    const AstNode *body = while_statement->data.while_statement.body;
+    char *condition_operand = NULL;
+    char *start_label = NULL;
+    char *exit_label = NULL;
+    TacStatus status;
+
+    if (while_statement->data.while_statement.condition == NULL
+        || body == NULL || body->kind != AST_NODE_BLOCK) {
+        return TAC_STATUS_INTERNAL_ERROR;
+    }
+
+    status = make_label(context, &start_label);
+    if (status == TAC_STATUS_SUCCESS) {
+        status = make_label(context, &exit_label);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_LABEL,
+            NULL,
+            start_label);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = generate_expression(
+            context,
+            while_statement->data.while_statement.condition,
+            &condition_operand);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_JUMP_IF_FALSE,
+            condition_operand,
+            exit_label);
+    }
+    free(condition_operand);
+
+    if (status == TAC_STATUS_SUCCESS) {
+        status = generate_block(context, body);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_JUMP,
+            NULL,
+            start_label);
+    }
+    if (status == TAC_STATUS_SUCCESS) {
+        status = append_control_instruction(
+            context->program,
+            TAC_INSTRUCTION_LABEL,
+            NULL,
+            exit_label);
+    }
+
+    free(start_label);
+    free(exit_label);
+    return status;
+}
+
 static TacStatus generate_statement(TacContext *context,
                                     const AstNode *statement)
 {
@@ -744,8 +951,9 @@ static TacStatus generate_statement(TacContext *context,
     case AST_NODE_PRINT:
         return generate_print(context, statement);
     case AST_NODE_IF:
+        return generate_if(context, statement);
     case AST_NODE_WHILE:
-        return TAC_STATUS_UNSUPPORTED_NODE;
+        return generate_while(context, statement);
     default:
         return TAC_STATUS_INTERNAL_ERROR;
     }
@@ -782,6 +990,7 @@ TacStatus tac_generate(const AstNode *program, TacProgram **out_program)
     context.program = calloc(1, sizeof(*context.program));
     context.symbols = symbol_table_create();
     context.next_temporary = 1;
+    context.next_label = 1;
     if (context.program == NULL || context.symbols == NULL) {
         tac_program_destroy(context.program);
         symbol_table_destroy(context.symbols);
@@ -856,6 +1065,27 @@ bool tac_program_print(FILE *output, const TacProgram *program)
             }
             result = fprintf(output, "print %s\n",
                              instruction->first_operand);
+            break;
+        case TAC_INSTRUCTION_LABEL:
+            if (instruction->label == NULL) {
+                return false;
+            }
+            result = fprintf(output, "%s:\n", instruction->label);
+            break;
+        case TAC_INSTRUCTION_JUMP:
+            if (instruction->label == NULL) {
+                return false;
+            }
+            result = fprintf(output, "goto %s\n", instruction->label);
+            break;
+        case TAC_INSTRUCTION_JUMP_IF_FALSE:
+            if (instruction->first_operand == NULL
+                || instruction->label == NULL) {
+                return false;
+            }
+            result = fprintf(output, "ifFalse %s goto %s\n",
+                             instruction->first_operand,
+                             instruction->label);
             break;
         default:
             return false;

@@ -1,0 +1,7 @@
+L1 = 1
+ready = true
+ifFalse ready goto .L1
+t1 = L1 + 1
+L1 = t1
+.L1:
+print L1

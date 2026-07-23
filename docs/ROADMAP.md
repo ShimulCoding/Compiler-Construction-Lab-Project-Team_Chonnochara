@@ -1,6 +1,6 @@
 # Development and Contribution Roadmap
 
-Status: M1-M6 are committed and pushed. M7 non-control-flow TAC is implemented and tested, pending Dipro's review and commit approval. Dipro remains the next intended contributor.
+Status: M1-M7 are committed and pushed. M8 control-flow TAC is implemented and tested, pending Mehedi's review and commit approval. Mehedi remains the next intended contributor.
 
 The initialization documents were incorporated into Shimul's coherent M1 foundation milestone. This consumes Shimul's current turn and advances the intended contribution cycle to Nayem without changing the existing M2-M16 ownership sequence.
 
@@ -28,8 +28,8 @@ Shimul -> Nayem -> Dipro -> Mehedi -> repeat
 | M4 | 23 Jul | Mehedi | Implement the Bison CFG with normal EOF, both declaration forms, standalone/empty blocks, structural precedence, AST-building actions, line-aware diagnostics, semicolon/brace recovery, lexical-error duplicate suppression, zero-conflict evidence, and parser tests. Completed, reviewed, committed, and pushed as `6d6fc30`. | M1-M3 |
 | M5 | 24 Jul | Shimul | Implement nested symbol-table scopes, insertion/current/active/history lookup, monotonic IDs, declaration-order retention, initializer-order support, shadowing/restoration, cleanup, printer golden, and direct unit tests. Completed, committed, and pushed as `1f319c6`. | M2 |
 | M6 | 24 Jul | Nayem | Implement the complete semantic pass: declaration/use analysis, one scope per block, inferred expression types, exact initializer/assignment compatibility, operator/condition validation, deterministic diagnostics, cascade policy, and focused parser-to-AST integration tests. Completed, reviewed, committed, and pushed as `4f302dc`. This user-approved scope absorbs the former M7 type-checking deliverable. | M4-M5 |
-| M7 | 25 Jul | Dipro | Implement deterministic owned TAC instructions plus generation for literals, identifiers, initialized declarations, arithmetic/relational/logical expressions, assignment, standalone blocks, shadow-safe storage names, and print with exact goldens. Implementation/tests complete; owner review and approved commit remain. Control-flow lowering remains M8. | M6 |
-| M8 | 26 Jul | Mehedi | Extend TAC with deterministic labels and jumps for `if`, `if-else`, and `while`; add nested-control-flow goldens. | M7 |
+| M7 | 25 Jul | Dipro | Implement deterministic owned TAC instructions plus generation for literals, identifiers, initialized declarations, arithmetic/relational/logical expressions, assignment, standalone blocks, shadow-safe storage names, and print with exact goldens. Completed, reviewed, committed, and pushed as `3386ba1`. | M6 |
+| M8 | 26 Jul | Mehedi | Extend TAC with structural `.L1` labels, conditional/unconditional jumps, deterministic `if`/`if-else`/`while` lowering, loop-condition reevaluation, nested-control-flow scope handling, and exact goldens. Implementation/tests complete; owner review and approved commit remain. | M7 |
 | M9 | 26 Jul | Shimul | Integrate the CLI and full phase gates; make a non-trivial program pass source -> AST -> semantics -> TAC; define stable exit codes and output streams. | M3-M8 |
 | M10 | 27 Jul | Nayem | Expand executable end-to-end `.mc`/`.txt` fixtures, expected outputs, and source-path/phase-gate coverage for every required success/error category. | M9 |
 | M11 | 28 Jul | Dipro | Harden lexer/parser recovery, semantic/TAC diagnostics and output, fix edge cases found by the full suite, and validate unseen-input behavior. | M10 |

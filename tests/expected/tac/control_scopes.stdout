@@ -1,0 +1,21 @@
+x = 1
+choose = true
+ifFalse choose goto .L1
+t1 = x + 1
+x@1 = t1
+print x@1
+goto .L2
+.L1:
+x@2 = 3
+print x@2
+.L2:
+print x
+.L3:
+ifFalse choose goto .L4
+t2 = x + 4
+x@3 = t2
+print x@3
+choose = false
+goto .L3
+.L4:
+print x

@@ -1,0 +1,9 @@
+x = 3
+.L1:
+t1 = x > 0
+ifFalse t1 goto .L2
+t2 = x - 1
+x = t2
+goto .L1
+.L2:
+print x

@@ -1,0 +1,11 @@
+choose = true
+value = 0
+ifFalse choose goto .L1
+branch@1 = 1
+value = branch@1
+goto .L2
+.L1:
+branch@2 = 2
+value = branch@2
+.L2:
+print value

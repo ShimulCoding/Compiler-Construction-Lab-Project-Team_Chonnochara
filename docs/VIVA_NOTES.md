@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: M6 semantic validation plus the M2-M5 lexer/parser/AST/symbol-table path are implemented and documented. TAC and the final driver remain future work. Every member must understand the complete project, not only their attributed commits.
+Status: M8 completes mandatory TAC generation on the implemented lexer/parser/AST/symbol-table/semantic path. The production compiler driver and final deliverables remain future work. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -229,13 +229,13 @@ TAC assumes names, operators, and types are meaningful. Generating code for an i
 
 It is a linear intermediate representation where a complex expression is decomposed into simple instructions, commonly one operator and up to two operands. Temporaries hold intermediate results; labels and jumps express control flow.
 
-### What is the M7 TAC public API?
+### What is the M7/M8 TAC public API?
 
 `tac_generate(const AstNode *, TacProgram **)` borrows a semantically valid program AST and returns an owned program or an explicit invalid/allocation/unsupported/internal status. `tac_program_print` emits one deterministic line per instruction, `tac_program_destroy` frees the array and copied strings, and destruction of NULL is safe. Failure returns no authoritative partial program.
 
 ### How is one TAC instruction represented?
 
-`TacInstructionKind` tags assignment, unary, binary, or print. The record owns copied `result`, `operator_text`, `first_operand`, and optional `second_operand` strings. The tag determines which fields are meaningful; `TacProgram` owns the dynamic instruction array.
+`TacInstructionKind` tags assignment, unary, binary, print, label, unconditional jump, or conditional-false jump. The record owns copied `result`, `operator_text`, operand, and control-target `label` strings. The tag determines which fields are meaningful; `TacProgram` owns the dynamic instruction array.
 
 ### How are expressions lowered?
 
@@ -257,21 +257,25 @@ It matches M6 semantics. In `{ int x = x + 1; }`, expression generation first re
 
 An uninitialized declaration and empty block emit nothing. An initialized declaration emits initializer instructions then `storage = operand`. Assignment does the same for an existing storage name. Print emits `print storage`. Standalone and nested blocks emit their statement lists in source order.
 
-### Does M7 implement short-circuit logic?
+### Does logical TAC short-circuit?
 
-No. `&&`, `||`, and `!` are ordinary value-producing TAC operators, as approved by the language contract. There are no side-effecting expression forms, and M8—not M7—owns control-flow jumps.
+No. `&&`, `||`, and `!` remain ordinary value-producing TAC operators, as approved by the language contract. M8 jumps implement statement control flow, not a new short-circuit expression rule.
 
-### Why does M7 reject `if` and `while`?
+### How are labels named safely?
 
-Silently skipping a control-flow AST would create incorrect TAC. M7 returns `TAC_STATUS_UNSUPPORTED_NODE`, destroys any partial program, and the test driver prints no TAC. M8 must implement deterministic labels and conditional/unconditional jumps for `if`, `if-else`, and `while`.
+Each generation starts at `.L1` and increments in AST traversal order. A dot cannot appear in a legal source identifier, so source variable `L1` and compiler label `.L1` remain distinct. There is no global counter, so repeated calls reset and produce identical output.
 
-### What do the M7 tests prove?
+### How are `if` and `if-else` lowered?
 
-Fourteen direct unit tests cover empty programs, statuses, the instruction model, copied ownership, ordinary/collision-aware temporary reset, earlier/later/initialized `t1`, repeated output, shadow storage, explicit control-flow rejection, and cleanup execution. Twelve integration cases cover every operator, literals, declarations, assignment, print, precedence, nested/sibling blocks, initializer binding order, all three global-collision positions, semantic gating, exact goldens, and `if`/`while` deferral. They do not prove control-flow TAC, the final CLI, or leak freedom.
+An `if` lowers its condition, emits `ifFalse condition goto .L1`, emits the then-block, then emits `.L1:`. An `if-else` uses an else label and end label: false jump to else, then-block, `goto` end, else label/block, then end label. The branch blocks—not the `if` node—create sibling scopes.
 
-### How are `if` and `while` lowered?
+### How is `while` lowered?
 
-An `if` evaluates a condition and conditionally jumps to an else/end label. A `while` places a start label before its condition, jumps to an exit label when false, emits the body, then jumps back to the start.
+A `while` emits its start label before generating the condition expression. It then emits a false jump to the exit, the body block, a back edge to the start, and the exit label. Because the back edge targets the point before condition TAC, every condition temporary is recomputed on every runtime iteration.
+
+### What do the M8 TAC tests prove?
+
+Seventeen unit tests retain M7 expression/storage checks and add structural label/jump inspection, exact control printing, both counter resets, and no partial result for a corrupt statement. Twenty integration cases include 19 successful TAC goldens plus the semantic gate. They cover simple/expression/else/while forms, nested control in both directions, empty/sequential controls, shadowing/restoration, `L1` versus `.L1`, a full-language control-flow source, and repeated deterministic output. They do not prove the production CLI or leak freedom.
 
 ### Parse tree versus AST?
 

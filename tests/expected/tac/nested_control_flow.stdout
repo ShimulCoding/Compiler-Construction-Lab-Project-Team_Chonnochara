@@ -1,0 +1,21 @@
+x = 2
+run = true
+.L1:
+t1 = x > 0
+t2 = run && t1
+ifFalse t2 goto .L2
+t3 = x == 1
+ifFalse t3 goto .L3
+print x
+goto .L4
+.L3:
+.L5:
+ifFalse run goto .L6
+run = false
+goto .L5
+.L6:
+.L4:
+t4 = x - 1
+x = t4
+goto .L1
+.L2:

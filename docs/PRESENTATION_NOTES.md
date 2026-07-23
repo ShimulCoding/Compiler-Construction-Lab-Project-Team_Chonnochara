@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: M7 adds working non-control-flow TAC to the validated M6 front end. Control-flow TAC, the final driver, slide deck, and screenshot evidence do not yet exist.
+Status: M8 completes working mandatory TAC on the validated front end. The final production driver, slide deck, and screenshot evidence do not yet exist.
 
 ## Core story
 
@@ -96,9 +96,19 @@ M1 contract summary for a future language slide:
 - Explain that one private symbol table resolves source names and one binding list maps each stable `Symbol *` to its TAC storage name; the AST is borrowed and unmodified.
 - Point out the tagged instruction kinds (assignment, unary, binary, print), copied strings, deterministic printer, per-call counter reset, and safe destruction.
 - Show a legal global `t1` declared after an earlier expression: the generator pre-reserves all global names, so the expression uses `t2` without renaming `t1`.
-- Demonstrate a semantic error producing its existing stderr with no TAC, then an `if` producing explicit `TAC_UNSUPPORTED_NODE` rather than silently disappearing.
-- Run `make test` and identify the M7 summary: header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 14 TAC unit, and 12 TAC integration cases.
-- State the boundary honestly: M7 has no labels or jumps. The manual's complete TAC requirement remains pending until M8 lowers `if`, `if-else`, and `while`.
+- Retain M7 as the expression/storage foundation: the M8 extension adds control instructions without changing ordinary TAC goldens.
+
+## M8 control-flow TAC demonstration material
+
+- Trace `if (ready) { print ready; }`: emit `ifFalse ready goto .L1`, the body, then `.L1:`.
+- Trace `if-else`: explain the false jump to `.L1`, unconditional `goto .L2` after the then-block, sibling else scope at `.L1`, and join at `.L2`.
+- For `while (x > 0)`, point to `.L1:` before `t1 = x > 0`. The back edge targets `.L1`, so the comparison temporary is recomputed every iteration.
+- Contrast legal source variable `L1` with generated label `.L1`; the dot makes the compiler namespace unambiguous.
+- Show branch/loop shadows as `x@1`, `x@2`, `x@3`, then show global `x` restored after each block.
+- Demonstrate nested `if` inside `while` and nested `while` inside `else`; labels increase deterministically in AST traversal order.
+- Demonstrate a semantic error producing its existing stderr and no TAC, proving the phase gate remains unchanged.
+- Run `make test` and identify the M8 summary: header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 17 TAC unit, and 20 TAC integration cases.
+- State the boundary honestly: mandatory TAC works through the test driver, but M9 still must provide the production CLI and final AST/TAC output contract.
 
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
@@ -145,6 +155,8 @@ Resolved M5 design challenge: an exited declaration must stop resolving actively
 Resolved M6 design challenge: invalid expressions must not create misleading secondary assignment/initializer/condition diagnostics, yet independent later errors should still appear. A transient valid/type result carries failure upward only through dependent contexts while source-order statement traversal continues.
 
 Resolved M7 design challenge: source-name TAC becomes ambiguous under legal nested shadowing. Reusing the existing symbol table and mapping each stable binding to a deterministic storage name keeps globals readable (`x`) while nested declarations become distinct (`x@1`, `x@2`) and initializer-before-binding behavior remains correct.
+
+Resolved M8 design challenge: loop conditions that produce temporaries must execute on every iteration. Emitting the loop-start label before condition lowering makes the back edge reevaluate the complete condition. A separate dot-prefixed label namespace prevents collisions with legal identifiers such as `L1`.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

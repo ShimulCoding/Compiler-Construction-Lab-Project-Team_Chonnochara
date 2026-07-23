@@ -50,15 +50,9 @@ int main(int argc, char **argv)
 
     tac_status = tac_generate(program, &tac_program);
     if (tac_status != TAC_STATUS_SUCCESS) {
-        if (tac_status == TAC_STATUS_UNSUPPORTED_NODE) {
-            fprintf(stderr,
-                    "TAC generation error [TAC_UNSUPPORTED_NODE]: "
-                    "control-flow TAC is deferred to M8\n");
-        } else {
-            fprintf(stderr,
-                    "TAC generation error [%s]: generation failed\n",
-                    tac_status_name(tac_status));
-        }
+        fprintf(stderr,
+                "TAC generation error [%s]: generation failed\n",
+                tac_status_name(tac_status));
         ast_destroy(program);
         return SEMANTIC_STATUS_INTERNAL_ERROR;
     }

@@ -9,7 +9,10 @@ PASS: initialized global t1 avoids collision
 PASS: collision-aware counter resets
 PASS: repeated output determinism
 PASS: shadow storage and outer restoration
-PASS: if returns unsupported without partial TAC
-PASS: while returns unsupported without partial TAC
+PASS: if lowers to conditional jump and label
+PASS: while reevaluates condition after start label
+PASS: control instruction data model
+PASS: label and temporary counters reset
+PASS: corrupt statement returns no partial TAC
 PASS: printer rejects invalid programs
-TAC unit tests: 14 passed
+TAC unit tests: 17 passed

@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Status: **M7 adds tested non-control-flow TAC generation to the M6 validated front end. Control-flow lowering and the final compiler driver remain pending.**
+Status: **M8 completes tested mandatory TAC generation on the validated front end. The final production compiler driver remains pending.**
 
 ## Implemented M2 foundation
 
@@ -56,7 +56,16 @@ Status: **M7 adds tested non-control-flow TAC generation to the M6 validated fro
 - `src/codegen/tac.c` borrows a validated AST, reserves every direct global declaration name before emission, visits expressions left to right, emits the lowest available `t1`, `t2`, ... results, and copies every stored operand/operator string.
 - A private symbol table plus a binding-to-storage-name list preserves declaration identity: global names remain unchanged and non-global names use `name@scope-id`.
 - Declaration initializers are lowered before the new binding is inserted. Plain declarations and empty blocks emit no instruction; assignments, initialized declarations, blocks, and identifier print emit source-ordered TAC.
-- `tests/support/tac_driver.c` is test-only. It invokes TAC only after semantic success and returns no TAC for semantic failure or M7-unsupported control flow.
+- `tests/support/tac_driver.c` is test-only. It invokes TAC only after semantic success and returns no TAC for semantic failure.
+
+## Implemented M8 control-flow TAC
+
+- `TacInstructionKind` now includes structural label, unconditional-jump, and conditional-false-jump forms. Each instruction owns its copied `.L<n>` label text.
+- Every `tac_generate` call resets labels to `.L1`; the dot-prefixed namespace cannot collide with a legal source identifier such as `L1`.
+- `if` lowers to a false jump, then-block, and end label. `if-else` adds an unconditional jump over the else-block and distinct else/end labels.
+- `while` emits its start label before condition-expression TAC, then a false exit jump, body, back edge, and exit label. Every back edge therefore recomputes the condition and its temporaries.
+- Control nodes add no scope. Their existing AST block children each enter exactly one scope, preserving monotonic `name@scope-id` storage, sibling isolation, shadow restoration, and initializer-before-binding behavior.
+- Nested control-flow goldens cover both an `if` inside a `while` and a `while` inside an `if-else`; prior non-control-flow TAC output remains unchanged.
 
 ## Required pipeline
 
@@ -237,13 +246,13 @@ Input: a semantically valid AST.
 
 Output: deterministic linear TAC.
 
-`TacProgram` owns a dynamic array of tagged assignment, unary, binary, and print instructions. Each instruction owns copied result/operator/operand strings. `tac_generate` returns success, invalid-argument, allocation-failure, unsupported-node, or internal-error status and returns no partial program after failure. `tac_program_destroy(NULL)` is safe.
+`TacProgram` owns a dynamic array of seven tagged instruction kinds: assignment, unary, binary, print, label, unconditional jump, and conditional-false jump. Each instruction owns its copied result/operator/operand/label strings. `tac_generate` returns success, invalid-argument, allocation-failure, unsupported-node, or internal-error status and returns no partial program after failure. No valid current-language AST node returns unsupported after M8; corrupt/unknown statement kinds return internal error. `tac_program_destroy(NULL)` is safe.
 
 Expression generation returns an owned operand string. Literals and identifiers need no instruction; unary `!` and every binary operator recursively lower left-to-right and then emit one new temporary. Before emission, the generator scans direct program statements and reserves every global declaration name, including declarations that occur later in source order. Temporary allocation starts at `t1` for each call and skips reserved globals plus already allocated temporaries. Nested storage remains `name@scope-id`, so it needs no extra reservation. Floating values use readable deterministic `%.15g` formatting, adding `.0` when an integral floating value would otherwise look like an integer.
 
 Statements append instructions in source order. An initialized declaration lowers its initializer before inserting the declaration binding, then stores into that binding. A plain declaration or empty block emits nothing. Every standalone/nested block enters one code-generation scope. Global storage retains the source name; non-global storage is `name@scope-id`, where IDs begin at global 0 and increase with block creation. This distinguishes shadows, restores outer bindings after exit, and isolates siblings.
 
-Implemented M7 spelling:
+Implemented expression/statement spelling:
 
 ```text
 t1 = b * 2
@@ -252,7 +261,16 @@ c = t2
 print c
 ```
 
-Logical expressions are ordinary materialized Boolean TAC operations, not short-circuit jumps. M7 deliberately returns `TAC_STATUS_UNSUPPORTED_NODE` for `if` and `while`; it never silently omits a control-flow subtree. M8 must add labels plus conditional/unconditional jumps before the manual's TAC requirement is complete.
+Logical expressions remain ordinary materialized Boolean TAC operations, not short-circuit jumps. M8 control flow uses:
+
+```text
+ifFalse condition goto .L1
+goto .L2
+.L1:
+.L2:
+```
+
+An `if` uses one false/end label. An `if-else` uses an else label and an end label. A `while` emits `.Lstart:` before condition TAC, `ifFalse` to its exit, its block, a `goto` back edge, and the exit label. Labels and temporaries use independent per-generation counters.
 
 ## Ownership and cleanup
 
@@ -261,7 +279,7 @@ Logical expressions are ordinary materialized Boolean TAC operations, not short-
 - AST nodes own duplicated identifier strings and their child/list storage.
 - The symbol table owns its copied symbol names and scope records.
 - The semantic analyzer owns its private symbol table and transient type results; it borrows the AST for one call.
-- Each TAC program owns its instruction array and every copied result/operator/operand string; the generator owns and destroys its private symbol/binding state and borrows the AST.
+- Each TAC program owns its instruction array and every copied result/operator/operand/label string; the generator owns and destroys its private symbol/binding state and borrows the AST.
 - The driver owns the phase contexts and performs cleanup on both success and error paths.
 
 These rules must be reflected in actual constructors/destructors and Bison destructors to prevent leaks or double frees.
@@ -291,12 +309,12 @@ The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Gi
 
 ```text
 make          build AST, symbol-table, token, lexer, parser, semantic, and TAC phase tests
-make test     run M2-M6 regressions plus M7 TAC units/fixtures/goldens
+make test     run M2-M7 regressions plus M8 control-flow TAC goldens
 make clean    remove only the generated build/ directory
 ```
 
 The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> semantic analyzer + symbol table -> TAC generator -> phase-test executables`. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and writes temporary results only under ignored `build/test-results/`.
 
-Current `make test` evidence is one generated-header check, 15 direct AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases. M7 evidence covers every expression operator, literal formatting, direct operands, declarations/assignments/print, nested scope naming, collision-safe counter reset, repeat determinism, the semantic gate, and explicit control-flow deferral.
+Current `make test` evidence is one generated-header check, 15 direct AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 17 TAC unit tests, and 20 TAC integration cases. M8 adds structural-control instruction checks, exact simple/expression/else/loop/nested goldens, start-label-before-condition evidence, label/source-name separation, empty/sequential control flow, block-scope restoration, counter reset, repeat determinism, and the unchanged semantic gate.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.
