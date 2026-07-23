@@ -162,7 +162,7 @@ Retained frames preserve inactive declaration history, and individually allocate
 
 ### What is the M5/M6 boundary?
 
-M5 is a reusable scope/name data structure and emits no `SEM_...` text. M6 owns AST traversal, source-facing classification, type inference, and operator/context checks. Neither module generates TAC.
+M5 is a reusable scope/name data structure and emits no `SEM_...` text. M6 owns AST traversal, source-facing classification, type inference, and operator/context checks. M7 separately borrows the validated AST and reuses a private symbol table for TAC binding identity.
 
 ### What is the M6 public API?
 
@@ -228,6 +228,46 @@ TAC assumes names, operators, and types are meaningful. Generating code for an i
 ### What is Three Address Code?
 
 It is a linear intermediate representation where a complex expression is decomposed into simple instructions, commonly one operator and up to two operands. Temporaries hold intermediate results; labels and jumps express control flow.
+
+### What is the M7 TAC public API?
+
+`tac_generate(const AstNode *, TacProgram **)` borrows a semantically valid program AST and returns an owned program or an explicit invalid/allocation/unsupported/internal status. `tac_program_print` emits one deterministic line per instruction, `tac_program_destroy` frees the array and copied strings, and destruction of NULL is safe. Failure returns no authoritative partial program.
+
+### How is one TAC instruction represented?
+
+`TacInstructionKind` tags assignment, unary, binary, or print. The record owns copied `result`, `operator_text`, `first_operand`, and optional `second_operand` strings. The tag determines which fields are meaningful; `TacProgram` owns the dynamic instruction array.
+
+### How are expressions lowered?
+
+The generator recursively visits the left child before the right child. Literal and identifier leaves return an operand without emitting an instruction. A unary or binary node obtains child operands, creates the next `tN`, emits one instruction, and returns that temporary to its parent. The AST already encodes precedence, so `a + b * 2` naturally emits multiplication before addition.
+
+### How are temporary names deterministic?
+
+Generation has no global mutable counter. Before emission, each `tac_generate` context reserves every direct program-level declaration name, even one declared later in source order. It then scans from `t1` upward, skipping reserved globals and earlier temporaries. The context is destroyed after the call, so repeated generation resets and produces identical names and output. Nested storage includes `@scope-id` and cannot collide with an unqualified temporary.
+
+### How does TAC preserve shadowed variables?
+
+M7 creates a private symbol table and a mapping from each stable `Symbol *` binding to an owned storage name. Scope 0 keeps `x`; a nested declaration becomes `x@1`, `x@2`, and so on. Active lookup selects the correct binding, block exit restores the outer one, and sibling scopes receive distinct monotonic IDs.
+
+### Why is an inner initializer generated before its binding?
+
+It matches M6 semantics. In `{ int x = x + 1; }`, expression generation first resolves the outer active `x`; only afterward is the inner symbol inserted and mapped to `x@1`. The resulting lines are `t1 = x + 1` then `x@1 = t1`.
+
+### What TAC does each M7 statement emit?
+
+An uninitialized declaration and empty block emit nothing. An initialized declaration emits initializer instructions then `storage = operand`. Assignment does the same for an existing storage name. Print emits `print storage`. Standalone and nested blocks emit their statement lists in source order.
+
+### Does M7 implement short-circuit logic?
+
+No. `&&`, `||`, and `!` are ordinary value-producing TAC operators, as approved by the language contract. There are no side-effecting expression forms, and M8—not M7—owns control-flow jumps.
+
+### Why does M7 reject `if` and `while`?
+
+Silently skipping a control-flow AST would create incorrect TAC. M7 returns `TAC_STATUS_UNSUPPORTED_NODE`, destroys any partial program, and the test driver prints no TAC. M8 must implement deterministic labels and conditional/unconditional jumps for `if`, `if-else`, and `while`.
+
+### What do the M7 tests prove?
+
+Fourteen direct unit tests cover empty programs, statuses, the instruction model, copied ownership, ordinary/collision-aware temporary reset, earlier/later/initialized `t1`, repeated output, shadow storage, explicit control-flow rejection, and cleanup execution. Twelve integration cases cover every operator, literals, declarations, assignment, print, precedence, nested/sibling blocks, initializer binding order, all three global-collision positions, semantic gating, exact goldens, and `if`/`while` deferral. They do not prove control-flow TAC, the final CLI, or leak freedom.
 
 ### How are `if` and `while` lowered?
 

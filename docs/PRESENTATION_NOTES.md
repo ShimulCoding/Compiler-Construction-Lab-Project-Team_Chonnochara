@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: M6 adds working semantic AST traversal and diagnostics to the M5 source-to-token-to-AST/symbol-table path. TAC, the final driver, slide deck, and screenshot evidence do not yet exist.
+Status: M7 adds working non-control-flow TAC to the validated M6 front end. Control-flow TAC, the final driver, slide deck, and screenshot evidence do not yet exist.
 
 ## Core story
 
@@ -88,6 +88,18 @@ M1 contract summary for a future language slide:
 - Run `make test` and identify the M6 summary: header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, and 26 semantic cases.
 - State the boundary honestly: `semantic_test` is a test-only phase driver and semantic success currently produces no TAC.
 
+## M7 TAC demonstration material
+
+- Trace `c = a + b * 2;`: the AST visits the multiplication first, emits `t1 = b * 2`, emits `t2 = a + t1`, then stores `c = t2`.
+- Contrast direct operands with compound results: `a = 5` needs no temporary, while each unary or binary AST node creates exactly one `tN`.
+- Show `int x = 1; { int x = x + 1; print x; } print x;`: the initializer reads global `x`, then the inner binding becomes `x@1`, and block exit restores printed `x`.
+- Explain that one private symbol table resolves source names and one binding list maps each stable `Symbol *` to its TAC storage name; the AST is borrowed and unmodified.
+- Point out the tagged instruction kinds (assignment, unary, binary, print), copied strings, deterministic printer, per-call counter reset, and safe destruction.
+- Show a legal global `t1` declared after an earlier expression: the generator pre-reserves all global names, so the expression uses `t2` without renaming `t1`.
+- Demonstrate a semantic error producing its existing stderr with no TAC, then an `if` producing explicit `TAC_UNSUPPORTED_NODE` rather than silently disappearing.
+- Run `make test` and identify the M7 summary: header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 14 TAC unit, and 12 TAC integration cases.
+- State the boundary honestly: M7 has no labels or jumps. The manual's complete TAC requirement remains pending until M8 lowers `if`, `if-else`, and `while`.
+
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
 ## Required live-demo sequence
@@ -131,6 +143,8 @@ Resolved M4 challenge: once Flex began writing Bison's `yylval` and `yylloc`, ev
 Resolved M5 design challenge: an exited declaration must stop resolving actively but remain available to distinguish scope violation from a never-declared name. Permanent scope frames with an active flag preserve that history, while parent links keep active lookup and shadow restoration direct and explainable.
 
 Resolved M6 design challenge: invalid expressions must not create misleading secondary assignment/initializer/condition diagnostics, yet independent later errors should still appear. A transient valid/type result carries failure upward only through dependent contexts while source-order statement traversal continues.
+
+Resolved M7 design challenge: source-name TAC becomes ambiguous under legal nested shadowing. Reusing the existing symbol table and mapping each stable binding to a deterministic storage name keeps globals readable (`x`) while nested declarations become distinct (`x@1`, `x@2`) and initializer-before-binding behavior remains correct.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

@@ -16,6 +16,8 @@ normalized_symbol_table_expected="$result_directory/symbol_table_unit.expected"
 lexer_binary="$repository_root/build/lexer_test"
 parser_binary="$repository_root/build/parser_test"
 semantic_binary="$repository_root/build/semantic_test"
+tac_unit_binary="$repository_root/build/tac_unit_tests"
+tac_binary="$repository_root/build/tac_test"
 
 mkdir -p "$result_directory"
 
@@ -490,3 +492,184 @@ do
 done
 
 printf '%s\n' 'PASS: 26 semantic cases covering scopes, declarations, types, operators, conditions, and deterministic diagnostics'
+
+tac_unit_stdout="$result_directory/tac_unit.stdout"
+tac_unit_repeat_stdout="$result_directory/tac_unit.repeat.stdout"
+tac_unit_stderr="$result_directory/tac_unit.stderr"
+tac_unit_repeat_stderr="$result_directory/tac_unit.repeat.stderr"
+normalized_tac_unit_expected="$result_directory/tac_unit.expected"
+
+if ! "$tac_unit_binary" >"$tac_unit_stdout" 2>"$tac_unit_stderr"; then
+    printf '%s\n' 'FAIL: TAC unit test executable returned nonzero' >&2
+    cat "$tac_unit_stderr" >&2
+    exit 1
+fi
+if ! "$tac_unit_binary" \
+    >"$tac_unit_repeat_stdout" 2>"$tac_unit_repeat_stderr"; then
+    printf '%s\n' 'FAIL: repeated TAC unit test run returned nonzero' >&2
+    cat "$tac_unit_repeat_stderr" >&2
+    exit 1
+fi
+if [ -s "$tac_unit_stderr" ] || [ -s "$tac_unit_repeat_stderr" ]; then
+    printf '%s\n' 'FAIL: TAC unit tests wrote unexpected standard error' >&2
+    cat "$tac_unit_stderr" "$tac_unit_repeat_stderr" >&2
+    exit 1
+fi
+
+sed 's/\r$//' "$repository_root/tests/expected/tac_unit.stdout" \
+    >"$normalized_tac_unit_expected"
+if ! cmp -s "$normalized_tac_unit_expected" "$tac_unit_stdout"; then
+    printf '%s\n' 'FAIL: TAC unit output differs from the golden file' >&2
+    diff -u "$normalized_tac_unit_expected" "$tac_unit_stdout" >&2 || true
+    exit 1
+fi
+if ! cmp -s "$tac_unit_stdout" "$tac_unit_repeat_stdout"; then
+    printf '%s\n' 'FAIL: TAC unit output changed across repeated runs' >&2
+    diff -u "$tac_unit_stdout" "$tac_unit_repeat_stdout" >&2 || true
+    exit 1
+fi
+
+printf '%s\n' 'PASS: 14 TAC unit tests and repeated deterministic output'
+
+run_tac_success()
+{
+    local case_name=$1
+    local source_file=$2
+    local expected_file=$3
+    local case_stdout="$result_directory/tac_$case_name.stdout"
+    local case_stderr="$result_directory/tac_$case_name.stderr"
+    local normalized_tac_expected="$result_directory/tac_$case_name.expected"
+
+    if ! "$tac_binary" "$source_file" \
+        >"$case_stdout" 2>"$case_stderr"; then
+        printf 'FAIL: TAC success case %s returned nonzero\n' \
+            "$case_name" >&2
+        cat "$case_stderr" >&2
+        exit 1
+    fi
+    if [ -s "$case_stderr" ]; then
+        printf 'FAIL: TAC success case %s wrote standard error\n' \
+            "$case_name" >&2
+        cat "$case_stderr" >&2
+        exit 1
+    fi
+
+    sed 's/\r$//' "$expected_file" >"$normalized_tac_expected"
+    if ! cmp -s "$normalized_tac_expected" "$case_stdout"; then
+        printf 'FAIL: TAC output differs for %s\n' "$case_name" >&2
+        diff -u "$normalized_tac_expected" "$case_stdout" >&2 || true
+        exit 1
+    fi
+}
+
+run_tac_failure()
+{
+    local case_name=$1
+    local source_file=$2
+    local expected_stderr_file=$3
+    local expected_exit_file=$4
+    local case_stdout="$result_directory/tac_$case_name.stdout"
+    local case_stderr="$result_directory/tac_$case_name.stderr"
+    local normalized_tac_expected="$result_directory/tac_$case_name.expected.stderr"
+    local actual_status
+    local expected_status
+
+    if "$tac_binary" "$source_file" \
+        >"$case_stdout" 2>"$case_stderr"; then
+        actual_status=0
+    else
+        actual_status=$?
+    fi
+    expected_status=$(tr -d '\r\n' <"$expected_exit_file")
+
+    if [ "$actual_status" -ne "$expected_status" ]; then
+        printf 'FAIL: TAC failure case %s exited %s, expected %s\n' \
+            "$case_name" "$actual_status" "$expected_status" >&2
+        exit 1
+    fi
+    if [ -s "$case_stdout" ]; then
+        printf 'FAIL: TAC failure case %s wrote unexpected standard output\n' \
+            "$case_name" >&2
+        cat "$case_stdout" >&2
+        exit 1
+    fi
+
+    sed 's/\r$//' "$expected_stderr_file" >"$normalized_tac_expected"
+    if ! cmp -s "$normalized_tac_expected" "$case_stderr"; then
+        printf 'FAIL: TAC diagnostic differs for %s\n' "$case_name" >&2
+        diff -u "$normalized_tac_expected" "$case_stderr" >&2 || true
+        exit 1
+    fi
+}
+
+for tac_case in \
+    basic \
+    all_operators \
+    nested_expression \
+    blocks_shadowing \
+    sequential \
+    nontrivial \
+    temporary_collision_before \
+    temporary_collision_after \
+    temporary_collision_initialized
+do
+    run_tac_success \
+        "$tac_case" \
+        "$repository_root/tests/tac/valid/$tac_case.mc" \
+        "$repository_root/tests/expected/tac/$tac_case.stdout"
+done
+
+tac_repeat_stdout="$result_directory/tac_blocks_shadowing.repeat.stdout"
+tac_repeat_stderr="$result_directory/tac_blocks_shadowing.repeat.stderr"
+if ! "$tac_binary" "$repository_root/tests/tac/valid/blocks_shadowing.mc" \
+    >"$tac_repeat_stdout" 2>"$tac_repeat_stderr"; then
+    printf '%s\n' 'FAIL: repeated TAC generation returned nonzero' >&2
+    cat "$tac_repeat_stderr" >&2
+    exit 1
+fi
+if [ -s "$tac_repeat_stderr" ] \
+    || ! cmp -s "$result_directory/tac_blocks_shadowing.stdout" \
+                 "$tac_repeat_stdout"; then
+    printf '%s\n' 'FAIL: TAC output changed across repeated generation' >&2
+    diff -u "$result_directory/tac_blocks_shadowing.stdout" \
+        "$tac_repeat_stdout" >&2 || true
+    exit 1
+fi
+
+tac_collision_repeat_stdout="$result_directory/tac_temporary_collision_after.repeat.stdout"
+tac_collision_repeat_stderr="$result_directory/tac_temporary_collision_after.repeat.stderr"
+if ! "$tac_binary" \
+    "$repository_root/tests/tac/valid/temporary_collision_after.mc" \
+    >"$tac_collision_repeat_stdout" 2>"$tac_collision_repeat_stderr"; then
+    printf '%s\n' 'FAIL: repeated collision-aware TAC generation returned nonzero' >&2
+    cat "$tac_collision_repeat_stderr" >&2
+    exit 1
+fi
+if [ -s "$tac_collision_repeat_stderr" ] \
+    || ! cmp -s "$result_directory/tac_temporary_collision_after.stdout" \
+                 "$tac_collision_repeat_stdout"; then
+    printf '%s\n' 'FAIL: collision-aware TAC changed across repeated generation' >&2
+    diff -u "$result_directory/tac_temporary_collision_after.stdout" \
+        "$tac_collision_repeat_stdout" >&2 || true
+    exit 1
+fi
+
+run_tac_failure \
+    semantic_gate \
+    "$repository_root/tests/semantic/invalid/undeclared.mc" \
+    "$repository_root/tests/expected/semantic/undeclared.stderr" \
+    "$repository_root/tests/expected/semantic/undeclared.exit"
+
+run_tac_failure \
+    unsupported_if \
+    "$repository_root/tests/tac/unsupported/if.mc" \
+    "$repository_root/tests/expected/tac/unsupported_control_flow.stderr" \
+    "$repository_root/tests/expected/tac/unsupported_control_flow.exit"
+
+run_tac_failure \
+    unsupported_while \
+    "$repository_root/tests/tac/unsupported/while.mc" \
+    "$repository_root/tests/expected/tac/unsupported_control_flow.stderr" \
+    "$repository_root/tests/expected/tac/unsupported_control_flow.exit"
+
+printf '%s\n' 'PASS: 12 TAC integration cases covering expressions, statements, scopes, collision-safe temporaries, semantic gating, goldens, and deferred control flow'

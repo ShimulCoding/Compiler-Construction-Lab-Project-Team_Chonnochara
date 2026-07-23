@@ -1,0 +1,8 @@
+a = 1
+b = 2
+c = 3
+t1 = a + b
+t2 = c - 1
+t3 = t1 * t2
+result = t3
+print result

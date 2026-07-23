@@ -1,0 +1,8 @@
+b = 10
+ratio = 2.5
+whole = 2.0
+ready = true
+stopped = false
+a = 5
+b = a
+print b

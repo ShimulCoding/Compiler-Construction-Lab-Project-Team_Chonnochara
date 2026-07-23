@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1-M5 decisions are approved, committed, and pushed. M6 decisions below are implemented and validated, pending Nayem's review and approval.
+Status: M1-M6 decisions are approved, committed, and pushed. M7 decisions below are implemented and validated, pending Dipro's review and approval.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -110,6 +110,18 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-606 | Keep `tests/support/semantic_driver.c` test-only: it parses one supplied file, runs semantics only after parse success, emits no stdout, and returns status 3 when semantic diagnostics exist. | Enables exact M6 integration tests without pretending TAC or the final source-to-TAC CLI is implemented. |
 | D-607 | Consolidate the roadmap's former M6 declaration/use pass and M7 type-checking pass into this user-approved M6 milestone. Reassign M7 to the first TAC milestone without changing the contributor cycle. | The requested M6 explicitly requires the complete semantic contract; maintaining a second empty/duplicate semantic milestone would be misleading. |
 
+## M7 TAC decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-701 | Represent TAC as an owned dynamic array of tagged assignment, unary, binary, and print instructions. Each instruction owns copied text fields. | The representation is direct enough for viva explanation, preserves an at-most-three-address shape, and provides one safe cleanup path without exposing AST or lexer storage. |
+| D-702 | Lower expressions recursively from left to right. Literals and identifiers are direct operands; every unary/binary node emits the lowest available `tN` result beginning at `t1` per generation. | AST structure already preserves precedence; deterministic traversal and counter reset make exact goldens repeatable without optimization. |
+| D-703 | Emit `target = operand` for initialized declarations and assignments, `print storage` for print, and no instruction for plain declarations or empty blocks. Format booleans as `true`/`false` and readable floats with `%.15g`, retaining `.0` for integral float values. | Matches the manual's illustrative TAC and keeps literal spelling deterministic and understandable. |
+| D-704 | Reuse a private `SymbolTable` during generation and associate each returned `Symbol *` with one owned storage name. Global bindings keep source names; non-global bindings use `name@scope-id`. | Distinct storage identities preserve shadowing, sibling isolation, initializer-before-inner-binding behavior, and outer restoration without modifying the AST or duplicating scope rules. |
+| D-705 | Treat `&&`, `||`, and `!` as ordinary value-producing TAC operations in M7. Do not add short-circuit jumps or optimization. | This implements the approved materialized-Boolean strategy; control-flow labels and jumps remain one coherent M8 milestone. |
+| D-706 | Return `TAC_STATUS_UNSUPPORTED_NODE` for `if` or `while` and destroy all partial output. The test driver invokes TAC only after semantic success. | Control-flow ASTs are never silently omitted, invalid programs emit existing semantic diagnostics with no TAC, and M7 does not pretend the manual's full TAC requirement is complete. |
+| D-707 | Before emission, reserve every direct program-level declaration name and add each allocated temporary to the same per-generation reserved-name set. Skip collisions while scanning `t1`, `t2`, ... upward. | A legal global named `t1` cannot be confused with a compiler temporary, even when declared later in source order. Ordinary names keep existing TAC spelling, while nested `name@scope-id` storage remains inherently distinct. |
+
 ## Resolved ambiguity register
 
 | Prior ID | Question | Resolution |
@@ -129,9 +141,7 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 
 ## Decisions deferred to later milestones
 
-| ID | Status | Decision area | Why deferred |
-| --- | --- | --- | --- |
-| D-104 | Proposed for M8 | Exact TAC instruction structure and final textual spelling | Determinism is fixed; representation belongs to TAC implementation. |
+M8 still owns label naming and exact conditional/unconditional jump spelling. M9 owns the final CLI section layout and phase exit integration. M7 resolves the former D-104 instruction-representation question through D-701 to D-706.
 
 Deferred decisions must not change the accepted language. Any actual language extension belongs to optional post-core work and requires explicit later approval.
 

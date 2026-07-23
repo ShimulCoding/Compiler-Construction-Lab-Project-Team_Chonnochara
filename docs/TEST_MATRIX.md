@@ -2,7 +2,7 @@
 
 Last implementation/test update: 24 July 2026.
 
-The M6 runner adds parser-to-AST semantic integration and exact diagnostic/exit goldens to all M2-M5 evidence. Semantic analysis is implemented and tested; TAC, the final driver, and end-to-end source-to-TAC cases remain blocked.
+The M7 runner adds deterministic non-control-flow TAC units/integration goldens to all M2-M6 evidence. Control-flow TAC, the final driver, and the complete end-to-end source-to-TAC case remain blocked.
 
 ## Inherited template cases
 
@@ -28,7 +28,7 @@ The M6 runner adds parser-to-AST semantic integration and exact diagnostic/exit 
 
 | Planned ID | Category / input focus | Expected evidence | Actual result | Status |
 | --- | --- | --- | --- | --- |
-| E2E-01 | Non-trivial all-phase valid program | Initialized/uninitialized declarations, standalone nested scope, stable AST, and TAC with temporaries, labels, jumps, and print; exit 0 | Not created | Missing |
+| E2E-01 | Non-trivial all-phase valid program | Initialized/uninitialized declarations, standalone nested scope, stable AST, and TAC with temporaries, labels, jumps, and print; exit 0 | M7 non-control-flow golden passes; labels/jumps/final CLI remain | Partial |
 | LEX-01 | All keywords, literals, delimiters, and single-character operators | Correct tokenization and line tracking | `all_tokens.mc` returned every one of the 32 token kinds with expected lines/lexemes | Pass (M3 lexer) |
 | LEX-02 | Identifier boundaries and keyword prefixes | Longest-match identifiers vs keywords | `_name`, `value2`, `integer`, `Int`, `ifvalue`, `while2`, and `trueValue` were identifiers while exact lowercase keywords retained keyword tokens | Pass (M3 lexer) |
 | LEX-03 | `<`/`<=`, `>`/`>=`, `!`/`!=`, `=`/`==`, `&&`, and `\|\|` adjacency | Related single/multi-character operators are distinguished atomically | Compact `=== !== <<= >>= !!= &&\|\|` matched the reviewed token golden | Pass (M3 lexer) |
@@ -60,12 +60,12 @@ The M6 runner adds parser-to-AST semantic integration and exact diagnostic/exit 
 | SEM-10C | Exact initializer compatibility | `float f = 1;` produces `SEM_TYPE_MISMATCH`; no implicit widening is invented | `initializer_exact_mismatch.mc` matched the exact int-to-float initializer rejection and its later print resolved | Pass (M6) |
 | SEM-10D | Initializer cascade suppression and later visibility | Invalid operator/name reports its root error without a dependent mismatch; the fresh binding is still inserted so a later use does not add `SEM_UNDECLARED` | `initializer_cascade.mc` emitted only invalid operator, while `self_initializer.mc` emitted only undeclared; both later prints resolved | Pass (M6) |
 | SEM-10E | Initializer visibility and redeclaration | New name is invisible in its initializer, outer shadow can resolve, duplicate preserves first binding, and rejected initializer is still traversed | Outer/self/redeclaration fixtures all matched expected silent or multi-error behavior | Pass (M6) |
-| TAC-01 | Integer and float `+ - * /` plus contract-valid `%` | Correct temporaries, values, and evaluation order | Not created | Missing |
-| TAC-02 | All relational/logical operators | Correct boolean TAC and chosen logical strategy | Not created | Missing |
+| TAC-01 | Integer and float `+ - * /` plus contract-valid `%` | Correct temporaries, values, and evaluation order | `all_operators` and precedence goldens match deterministic left-to-right temporaries | Pass (M7) |
+| TAC-02 | All relational/logical operators | Correct boolean TAC and chosen logical strategy | `< > <= >= == != && || !` all match exact materialized-value TAC | Pass (M7) |
 | TAC-03 | `if`, `if-else`, nested branches | Deterministic conditional/unconditional jumps and labels | Not created | Missing |
 | TAC-04 | `while` and nested control flow | Back edge and exit labels | Not created | Missing |
-| TAC-05 | Assignment and print | Stable final instructions | Not created | Missing |
-| TAC-06 | Initialized and uninitialized declarations | Compound initializer emits expression TAC then one store; literal initializer emits a direct store; plain declaration emits none | Not created | Missing |
+| TAC-05 | Assignment and print | Stable final instructions | Global and scope-qualified assignment/print lines match six valid goldens | Pass (M7) |
+| TAC-06 | Initialized and uninitialized declarations | Compound initializer emits expression TAC then one store; literal initializer emits a direct store; plain declaration emits none | `basic`, `sequential`, and shadow initializer goldens match all three behaviors | Pass (M7) |
 | CLI-01 | Source path conventions | `.mc`, `.txt`, and another readable supplied path are accepted without extension-based rejection | Not created | Missing |
 
 ## M1 static/document validation
@@ -166,6 +166,24 @@ Environment: Ubuntu 24.04.4 LTS on WSL2 with GCC 13.3.0, GNU Make 4.3, Flex 2.6.
 | M6-S04 | Storage/context rules | Initializers and assignments use exact compatibility; `if`/`while` require bool; print identifiers resolve | Valid core passed; initializer, assignment, and two condition cases matched exact line-aware goldens | Pass |
 | M6-S05 | Diagnostic classification/cascades | All approved codes are deterministic; dependent follow-ups are suppressed while independent errors continue | 20 invalid cases matched stderr and exit-3 goldens; multi-error case preserved source order; rejected initializer reported two independent errors | Pass |
 | M6-V02 | Full regressions | M2-M5 behavior remains unchanged | `make test` reported header PASS, 15 AST PASS, 30 symbol-table PASS, 10 lexer PASS, 32 parser PASS, and 26 semantic PASS | Pass |
+
+## M7 expression and statement TAC validation
+
+Environment: Ubuntu 24.04.4 LTS on WSL2 with GCC 13.3.0, GNU Make 4.3, Flex 2.6.4, and Bison 3.8.2. `tests/support/tac_driver.c` is test-only; M8 control-flow TAC and the final compiler driver are not claimed.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M7-V01 | Clean integration build | TAC core/unit/driver compile under existing C11 warnings; Bison remains conflict-free | Integrated build completed with zero Bison conflicts and no actionable GCC/Flex/Bison warnings | Pass |
+| M7-U01 | Program model/ownership | Empty program prints nothing; statuses/invalid arguments are explicit; destroy(NULL) and copied instruction text are safe | 14/14 direct unit checks passed and exact output repeated identically | Pass |
+| M7-T01 | Direct operands/statements | Plain declaration emits none; initialized declaration/assignment/print emit canonical lines; numeric/Boolean literals are stable | `basic` and `sequential` matched exact TAC goldens | Pass |
+| M7-T02 | Every expression operator | `!` and all 13 binary AST operators emit deterministic temporaries with no optimization or short-circuit jumps | `all_operators` matched a `t1` through `t15` exact golden | Pass |
+| M7-T03 | Precedence/evaluation order | AST grouping lowers left-to-right and nested results feed parents | Parenthesized/nested and non-trivial precedence goldens matched exactly | Pass |
+| M7-T04 | Block binding identity | Globals keep names; nested shadows use monotonic `name@scope-id`; outer/sibling bindings restore correctly | `blocks_shadowing` and `sequential` matched scope IDs 1, 2, and 3 as expected | Pass |
+| M7-T05 | Initializer-before-binding | An inner declaration initializer resolves the active outer binding before creating the inner storage name | Golden emitted `t1 = x + 1` before `x@1 = t1` | Pass |
+| M7-T06 | Phase/failure gates | Semantic error produces existing diagnostic/no TAC; control flow is explicit unsupported/no partial output | Semantic fixture exited 3; isolated `if` and `while` matched `TAC_UNSUPPORTED_NODE` stderr and exit 4 | Pass |
+| M7-T07 | Repeat determinism | New generation resets temporary/scope counters and repeated output is byte-identical | Direct reset checks and a repeated shadowing integration run passed | Pass |
+| M7-T08 | Temporary/global collision safety | Any direct global `tN` declaration, including a later declaration, reserves that storage name before emission | Before/after/initialized `t1` fixtures all used `t2`; repeated generation reset to the same output | Pass |
+| M7-V02 | Full regressions | M2-M6 behavior remains unchanged | `make test` reported header PASS, 15 AST, 30 symbol-table, 10 lexer, 32 parser, 26 semantic, 14 TAC unit, and 12 TAC integration PASS | Pass |
 
 ## Audit commands and results
 

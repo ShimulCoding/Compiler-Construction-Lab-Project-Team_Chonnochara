@@ -1,0 +1,36 @@
+a = 8
+b = 2
+yes = true
+no = false
+t1 = a + b
+add = t1
+t2 = a - b
+subtract = t2
+t3 = a * b
+multiply = t3
+t4 = a / b
+divide = t4
+t5 = a % b
+remainder = t5
+t6 = a + 2.5
+promoted = t6
+t7 = a < b
+less = t7
+t8 = a > b
+greater = t8
+t9 = a <= b
+less_equal = t9
+t10 = a >= b
+greater_equal = t10
+t11 = a == b
+equal = t11
+t12 = a != b
+not_equal = t12
+t13 = yes && no
+both = t13
+t14 = yes || no
+either = t14
+t15 = ! yes
+inverted = t15
+print add
+print inverted

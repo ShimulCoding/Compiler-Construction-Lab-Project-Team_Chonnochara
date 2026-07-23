@@ -4,14 +4,14 @@ Last updated: 24 July 2026 (Asia/Dhaka)
 
 ## Executive status
 
-- **Stage:** M5 is committed and pushed. M6 semantic analysis, integration tests, and documentation are implemented and validated in the working tree, pending Nayem's review and commit approval.
-- **Implementation:** The C11/AST foundation, mandatory lexer/parser-to-AST path, nested-scope symbol table, and semantic analyzer now exist. TAC generation and the final compiler driver do not exist; drivers under `tests/support/` remain test-only.
-- **Integration:** Bison remains the sole 32-token authority and produces the AST. `semantic_analyze` walks that AST in source order, uses the M5 symbol table for scope/name resolution, computes transient expression types, and emits deterministic semantic diagnostics. No source-to-TAC pipeline exists yet.
+- **Stage:** M1-M6 are committed and pushed. M7 expression/statement TAC generation, tests, and documentation are implemented and validated in the working tree, pending Dipro's review and commit approval.
+- **Implementation:** The C11/AST foundation, mandatory lexer/parser-to-AST path, nested-scope symbol table, semantic analyzer, and non-control-flow TAC generator now exist. M8 control-flow lowering and the final compiler driver do not exist; drivers under `tests/support/` remain test-only.
+- **Integration:** The M7 test path is source -> lexer -> parser -> AST -> semantic gate -> TAC. Valid declarations, expressions, assignments, blocks, and print produce deterministic TAC; `if`/`while` return an explicit unsupported status until M8.
 - **Build:** `make`, `make test`, and `make clean` work under the verified Ubuntu 24.04 WSL2 environment. Bison conflict warnings are treated as build errors, and generated files remain under ignored `build/`.
-- **Tests:** The current suite passes the generated-header check, 15 AST tests with unchanged direct-construction golden output, 30 symbol-table unit tests with repeatable golden output, 10 lexer cases, 32 parser cases, and 26 parser-to-AST semantic cases with exact diagnostics/exits.
+- **Tests:** The current suite passes the generated-header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases with exact goldens/exits.
 - **Deadline:** 31 July 2026, no extensions. Target release freeze: 30 July 2026.
-- **Immediate next task:** Nayem reviews the M6 API, traversal/type rules, diagnostic goldens, and 26 semantic cases before any M6 staging or commit.
-- **Next Intended Contributor:** **Nayem**.
+- **Immediate next task:** Dipro reviews the M7 TAC API, ownership, expression order, scope-qualified storage names, semantic gate, and exact goldens before any staging or commit.
+- **Next Intended Contributor:** **Dipro**.
 
 The initialization and M1 documents describe audited facts and the finalized technical contract. They do not prove compiler implementation or functional test completion.
 
@@ -46,7 +46,8 @@ Do not count inherited commits or this Codex-assisted audit as a team-member con
 | Flex lexer | Complete mandatory rules, line/location access, invalid-token diagnostics, generated-header integration, and focused goldens | M3 completed; owned and reviewed by Dipro |
 | Bison parser | Complete approved CFG, semantic values/locations, AST actions, diagnostics/recovery, and focused parser goldens | M4 completed, validated, and accepted by Mehedi |
 | Symbol table | Scope records, stable symbol records, current/active/history lookup, monotonic IDs, printer, cleanup, and focused golden tests | M5 committed and pushed by Shimul as `1f319c6` |
-| Semantic analyzer | Source-order AST traversal, nested scopes, name/type/operator/context rules, deterministic diagnostics, and focused integration goldens | M6 implemented and validated; pending Nayem review/approval |
+| Semantic analyzer | Source-order AST traversal, nested scopes, name/type/operator/context rules, deterministic diagnostics, and focused integration goldens | M6 committed and pushed by Nayem as `4f302dc` |
+| TAC generator | Owned instruction list, deterministic temporaries/printer, expressions, declaration/assignment/print, and scope-safe block bindings | M7 implemented and validated; pending Dipro review/approval |
 
 The README explicitly identifies the baseline as a template with no compiler solution. Its tree diagram is visibly mojibaked in the current checkout and its generic build/run commands do not describe an implemented program.
 
@@ -58,10 +59,10 @@ The README explicitly identifies the baseline as a template with no compiler sol
 | Bison parser | M4 completed/validated | `src/parser/parser.y` implements the complete approved CFG, typed values, locations, AST actions, stable syntax diagnostics, and `error` recovery with zero Bison conflicts |
 | AST | M2 completed | `src/ast/ast.h`, `ast.c`, and `ast_print.c` provide all mandatory AST shapes, source lines, ownership, cleanup, and deterministic printing |
 | Symbol table | M5 completed | `src/symbol_table/` stores name/type/location/scope metadata, manages global/nested scopes, preserves inactive history, and passes 30 direct unit tests |
-| Semantic analyzer | M6 implemented/validated, pending review | `src/semantic/` walks parser-built ASTs, enforces the approved name/scope/type/operator/context rules, and passes 26 exact integration cases |
-| TAC generator | Missing | No temporaries, labels, instruction representation, or output |
+| Semantic analyzer | M6 completed | `src/semantic/` walks parser-built ASTs, enforces the approved name/scope/type/operator/context rules, and passes 26 exact integration cases |
+| TAC generator | M7 implemented/validated, pending review | `src/codegen/tac.*` emits deterministic non-control-flow TAC and passes 14 unit plus 12 integration cases; labels/jumps remain M8 |
 | Driver/integration | Missing | No CLI, phase sequencing, exit-code policy, or executable |
-| Build/test automation | M6 expansion implemented | `make`, `make test`, and `make clean` build the semantic phase test and run its 26 cases while preserving all M2-M5 suites |
+| Build/test automation | M7 expansion implemented | `make`, `make test`, and `make clean` build TAC unit/integration tests while preserving all M2-M6 suites |
 
 ## Build and environment status
 
@@ -78,13 +79,15 @@ Windows remains the canonical editing/Git worktree. WSL performs builds and test
 
 ## Test status and known coverage gaps
 
-- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 30/30 symbol-table tests with identical repeated output, 10 lexer cases, 32 parser cases, and 26 semantic cases.
+- `make test` validates the generated token header, 15/15 AST tests with unchanged golden output, 30/30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases.
 - Lexer coverage includes all 32 token kinds, lowercase keyword versus identifier boundaries, compact overlapping operators, exact integer/float forms, spaces/tabs/blank lines, code followed by comments, LF and generated CRLF input, the complete Section 5.5 sample, unsupported block-comment behavior, invalid characters, and leading-dot/trailing-dot/exponent numeric rejection.
 - Recursive destruction executed successfully for nested trees; memory-leak verification remains unperformed because no leak-analysis package was approved or installed.
 - The inherited Markdown sketches remain reference material rather than direct fixtures, but executable phase fixtures now cover lexical, syntax, AST, symbol-table, and semantic behavior.
 - Semantic coverage includes all approved diagnostic categories, name history, declaration-point visibility, shadowing/restoration, sibling isolation, initialized-declaration cascade policy, all operator families, exact storage compatibility, Boolean conditions, valid print lookup, and multiple independent errors.
 - The M6 test driver intentionally produces no stdout and returns status 3 for semantic failure. It is not the final compiler driver.
-- Remaining functional gaps are TAC generation, final CLI/phase integration, and end-to-end source-to-TAC evidence.
+- M7 goldens cover all required expression operators, direct operands, initialized/plain declarations, assignment, print, source-order blocks, nested shadowing, outer restoration, sibling isolation, and initializer-before-binding resolution.
+- M7 reserves all direct global declaration names before emission and skips them while allocating `t1`, `t2`, ... temporaries, including declarations that occur later in source order.
+- Remaining functional gaps are M8 `if`/`if-else`/`while` labels and jumps, the final CLI, and complete control-flow source-to-TAC evidence.
 - The M4 integration requirement is implemented: the lexer reports `LEX_INVALID_TOKEN` and returns `YYUNDEF`; the parser suppresses the matching generic syntax report but still reports a later independent syntax error after recovery.
 - The mixed-invalid example crosses lexical/syntax/semantic concerns and is unsuitable as an isolated oracle; retain it only as a later recovery stress test.
 
@@ -107,20 +110,20 @@ Authoritative details: `docs/LANGUAGE_SPEC.md`, `docs/GRAMMAR.md`, `docs/TEST_CO
 ## Known risks
 
 - The audit began ten days before the 31 July deadline, leaving no schedule slack beyond the planned 30 July freeze.
-- The lexer/parser/AST/symbol-table/semantic path is ready, but TAC and the final driver remain on the critical path with little schedule slack.
-- M1-M5 are genuine reviewed and pushed milestones; M6 remains uncommitted until Nayem reviews and accepts responsibility.
-- Semantic analysis has the highest indicative implementation weight (20%); M6 now has implementation and tests, but it is not yet committed.
+- The lexer/parser/AST/symbol-table/semantic path is complete, but control-flow TAC and the final driver remain on the critical path with little schedule slack.
+- M1-M6 are genuine reviewed and pushed milestones; M7 remains uncommitted until Dipro reviews and accepts responsibility.
+- Temporary/global-name collisions are covered: the generator pre-reserves every unqualified global storage name, while nested `name@scope-id` storage remains distinct.
 - The inherited README still describes the instructor template rather than Team Chonnochara's implementation.
 - The fork is one README commit behind the instructor repository; review that upstream change before deciding whether to merge it.
 - Presentation, report, screenshots, and individual viva evidence must develop alongside code, not after it.
 
 ## Current development stage and next action
 
-M1-M5 are committed and pushed. M6 implementation and validation are complete but uncommitted. The handoff is:
+M1-M6 are committed and pushed. M7 implementation and validation are complete but uncommitted. The handoff is:
 
-1. Nayem reviews `semantic_analyze`, the transient expression-type result, one-scope-per-block traversal, declaration insertion order, and exact diagnostic goldens.
-2. Do not stage, commit, push, or begin M7 until the user explicitly approves the next action.
-3. Keep **Nayem** as the next intended contributor until the genuine M6 contribution is reviewed, approved, and committed.
-4. After an approved M6 commit, advance the cycle to Dipro for the replanned first TAC milestone.
+1. Dipro reviews `tac_generate`, the tagged instruction list, copied operands, left-to-right lowering, temporary reset, and binding-to-storage-name mapping.
+2. Do not stage, commit, push, or begin M8 until the user explicitly approves the next action.
+3. Keep **Dipro** as the next intended contributor until the genuine M7 contribution is reviewed, approved, and committed.
+4. After an approved M7 commit, advance the cycle to Mehedi for control-flow TAC.
 
-M6 implements semantic analysis but does not implement TAC, a final compiler driver, or end-to-end source-to-TAC behavior.
+M7 generates TAC only for non-control-flow statements. The manual's complete TAC requirement is still incomplete until M8 adds labels and jumps and later integration provides the final driver.

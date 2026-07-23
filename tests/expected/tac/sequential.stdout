@@ -1,0 +1,6 @@
+first = 7
+t1 = first * 2
+second = t1
+local@2 = second
+print local@2
+print second

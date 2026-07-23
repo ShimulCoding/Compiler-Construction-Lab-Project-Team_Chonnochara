@@ -1,0 +1,11 @@
+a = 5
+b = 10
+selected = true
+t1 = b * 2
+t2 = a + t1
+c = t2
+t3 = c >= 20
+t4 = selected && t3
+selected = t4
+print c
+print selected

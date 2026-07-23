@@ -1,0 +1,15 @@
+PASS: empty TAC program
+PASS: invalid arguments and status names
+PASS: instruction data model
+PASS: owned instruction strings
+PASS: temporary numbering resets
+PASS: global t1 before temporary generation
+PASS: global t1 after temporary generation
+PASS: initialized global t1 avoids collision
+PASS: collision-aware counter resets
+PASS: repeated output determinism
+PASS: shadow storage and outer restoration
+PASS: if returns unsupported without partial TAC
+PASS: while returns unsupported without partial TAC
+PASS: printer rejects invalid programs
+TAC unit tests: 14 passed

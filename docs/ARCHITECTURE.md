@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Status: **M6 adds tested semantic AST traversal and validation to the M5 source-to-AST/symbol-table path. TAC and the final compiler driver remain unimplemented.**
+Status: **M7 adds tested non-control-flow TAC generation to the M6 validated front end. Control-flow lowering and the final compiler driver remain pending.**
 
 ## Implemented M2 foundation
 
@@ -10,7 +10,7 @@ Status: **M6 adds tested semantic AST traversal and validation to the M5 source-
 - `src/ast/ast.c` implements allocation, owned string copies, list growth, constructor validation, and recursive destruction.
 - `src/ast/ast_print.c` implements deterministic two-space-indented tree output with a line on every node.
 - `src/parser/parser.y` began as M2's 32-token interface; M4 now implements the complete CFG while preserving the generated header as Flex's sole token authority.
-- `Makefile` incrementally builds the AST, lexer, parser, symbol table, semantic analyzer, and phase-test executables while confining generated output to ignored `build/`.
+- `Makefile` incrementally builds the AST, lexer, parser, symbol table, semantic analyzer, TAC generator, and phase-test executables while confining generated output to ignored `build/`.
 
 ## Implemented M3 lexer
 
@@ -49,6 +49,14 @@ Status: **M6 adds tested semantic AST traversal and validation to the M5 source-
 - Identifier resolution uses active lookup first and inactive history second. This keeps shadowing/restoration and sibling isolation correct while distinguishing `SEM_SCOPE_VIOLATION` from `SEM_UNDECLARED`.
 - Expressions return an internal valid/type pair, apply the approved numeric/logical/equality rules, and suppress only diagnostics that depend on an already invalid result.
 - `tests/support/semantic_driver.c` is a phase-test tool, not the final compiler. The runner validates 6 silent-success cases and 20 exact semantic-diagnostic/exit cases.
+
+## Implemented M7 TAC foundation
+
+- `src/codegen/tac.h` defines explicit generation statuses, four instruction kinds, and an owned `TacProgram` instruction list.
+- `src/codegen/tac.c` borrows a validated AST, reserves every direct global declaration name before emission, visits expressions left to right, emits the lowest available `t1`, `t2`, ... results, and copies every stored operand/operator string.
+- A private symbol table plus a binding-to-storage-name list preserves declaration identity: global names remain unchanged and non-global names use `name@scope-id`.
+- Declaration initializers are lowered before the new binding is inserted. Plain declarations and empty blocks emit no instruction; assignments, initialized declarations, blocks, and identifier print emit source-ordered TAC.
+- `tests/support/tac_driver.c` is test-only. It invokes TAC only after semantic success and returns no TAC for semantic failure or M7-unsupported control flow.
 
 ## Required pipeline
 
@@ -229,21 +237,22 @@ Input: a semantically valid AST.
 
 Output: deterministic linear TAC.
 
-Expression generation returns an operand name/literal. Compound expressions emit temporaries in evaluation order. Statements append instructions. A valid initialized declaration evaluates its optional initializer and emits a store to the declared name; an uninitialized declaration and an empty block emit no TAC. A standalone populated block emits its contained statements in source order. Control flow uses monotonically numbered labels and explicit jumps.
+`TacProgram` owns a dynamic array of tagged assignment, unary, binary, and print instructions. Each instruction owns copied result/operator/operand strings. `tac_generate` returns success, invalid-argument, allocation-failure, unsupported-node, or internal-error status and returns no partial program after failure. `tac_program_destroy(NULL)` is safe.
 
-Illustrative conventions (final spelling must be locked before golden tests):
+Expression generation returns an owned operand string. Literals and identifiers need no instruction; unary `!` and every binary operator recursively lower left-to-right and then emit one new temporary. Before emission, the generator scans direct program statements and reserves every global declaration name, including declarations that occur later in source order. Temporary allocation starts at `t1` for each call and skips reserved globals plus already allocated temporaries. Nested storage remains `name@scope-id`, so it needs no extra reservation. Floating values use readable deterministic `%.15g` formatting, adding `.0` when an integral floating value would otherwise look like an integer.
+
+Statements append instructions in source order. An initialized declaration lowers its initializer before inserting the declaration binding, then stores into that binding. A plain declaration or empty block emits nothing. Every standalone/nested block enters one code-generation scope. Global storage retains the source name; non-global storage is `name@scope-id`, where IDs begin at global 0 and increase with block creation. This distinguishes shadows, restores outer bindings after exit, and isolates siblings.
+
+Implemented M7 spelling:
 
 ```text
 t1 = b * 2
 t2 = a + t1
 c = t2
-ifFalse t3 goto L1
-goto L2
-L1:
 print c
 ```
 
-Logical expressions are materialized into Boolean temporaries. The M1 language contract does not promise short-circuit evaluation because its expressions contain no calls or assignment expressions. Correct deterministic logical TAC remains mandatory.
+Logical expressions are ordinary materialized Boolean TAC operations, not short-circuit jumps. M7 deliberately returns `TAC_STATUS_UNSUPPORTED_NODE` for `if` and `while`; it never silently omits a control-flow subtree. M8 must add labels plus conditional/unconditional jumps before the manual's TAC requirement is complete.
 
 ## Ownership and cleanup
 
@@ -252,7 +261,7 @@ Logical expressions are materialized into Boolean temporaries. The M1 language c
 - AST nodes own duplicated identifier strings and their child/list storage.
 - The symbol table owns its copied symbol names and scope records.
 - The semantic analyzer owns its private symbol table and transient type results; it borrows the AST for one call.
-- TAC storage owns formatted instruction strings or structured instruction operands.
+- Each TAC program owns its instruction array and every copied result/operator/operand string; the generator owns and destroys its private symbol/binding state and borrows the AST.
 - The driver owns the phase contexts and performs cleanup on both success and error paths.
 
 These rules must be reflected in actual constructors/destructors and Bison destructors to prevent leaks or double frees.
@@ -281,13 +290,13 @@ Tests should verify diagnostic phase, line, essential wording, and exit status w
 The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Git worktree while WSL compiles/tests the same checkout through `/mnt/e`; native Windows compilation remains unsupported. The implemented Makefile provides:
 
 ```text
-make          build AST, symbol-table, token, lexer, parser, and semantic phase tests
-make test     run M2-M5 regressions plus M6 semantic fixtures/goldens
+make          build AST, symbol-table, token, lexer, parser, semantic, and TAC phase tests
+make test     run M2-M6 regressions plus M7 TAC units/fixtures/goldens
 make clean    remove only the generated build/ directory
 ```
 
-The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> semantic analyzer + symbol table -> phase-test executables`. Later milestones add TAC/compiler objects without duplicating token definitions. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and generates temporary CRLF sources under `build/test-results/` without tracking generated input.
+The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> semantic analyzer + symbol table -> TAC generator -> phase-test executables`. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and writes temporary results only under ignored `build/test-results/`.
 
-Current `make test` evidence is one generated-header check, 15 direct AST tests with unchanged golden output, 30 symbol-table tests with identical repeated golden output, 10 lexer cases, 32 parser cases, and 26 semantic cases. Semantic evidence covers source-order visibility, every block/scope rule, all six approved diagnostic families, every operator family, exact storage compatibility including rejected implicit numeric conversion, cascade suppression, and deterministic multiple-error order.
+Current `make test` evidence is one generated-header check, 15 direct AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, 26 semantic cases, 14 TAC unit tests, and 12 TAC integration cases. M7 evidence covers every expression operator, literal formatting, direct operands, declarations/assignments/print, nested scope naming, collision-safe counter reset, repeat determinism, the semantic gate, and explicit control-flow deferral.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.

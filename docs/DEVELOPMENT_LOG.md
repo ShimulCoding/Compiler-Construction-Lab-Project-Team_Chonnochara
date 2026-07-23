@@ -144,7 +144,27 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Technical decisions:** The public analyzer returns only status plus diagnostic count and does not annotate or own the AST. An internal `{valid, ValueType}` result represents expression success/error without adding a source type. Boolean/numeric equality is `SEM_TYPE_MISMATCH`; invalid operator signatures are `SEM_INVALID_OPERATOR`; non-Boolean conditions are contextual `SEM_TYPE_MISMATCH`. Independent children/statements continue after recoverable semantic errors.
 - **Tests/commands:** Focused `make semantic-test`; integrated `make test`; final required sequence is `make clean`, `make`, `make test`, `make clean`, followed by Windows Git diff/artifact checks.
 - **Result:** The final clean/build/test/clean sequence passed 26 semantic cases (6 valid, 20 invalid) plus the generated-header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, and 32 parser cases. Bison reported zero conflicts, GCC/Flex/Bison emitted no actionable warnings, and final cleanup removed `build/`.
-- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Nayem review: `Nayem: Implemented semantic validation for the language rules`.
+- **Git handling:** Committed and pushed as `4f302dc0b3a3ebf47c341b2cc3eb4b5415b67c2c` with message `Nayem: Implemented semantic validation for the language rules` after separate approvals.
+
+## 24 July 2026 — M7 expression and statement TAC
+
+- **Intended contributor/owner:** Dipro. Implementation and validation are prepared for review; ownership and a Git commit remain pending explicit approval.
+- **Task:** Implement deterministic TAC for expressions and non-control-flow statements without adding labels, jumps, control-flow lowering, a final compiler driver, or language extensions.
+- **Files implemented:** `src/codegen/tac.h`, `src/codegen/tac.c`, `tests/unit/test_tac.c`, `tests/support/tac_driver.c`, focused sources under `tests/tac/`, and exact output/error/exit goldens under `tests/expected/tac/`.
+- **Supporting changes:** Incremental `Makefile`/`tests/run_tests.sh` integration and concise updates to project state, architecture, decisions, testing, roadmap, report, presentation, viva, and requirement traceability.
+- **Implemented:**
+  - a tagged, owned TAC instruction list for assignment, unary, binary, and print instructions, with recursive string cleanup and deterministic printing;
+  - left-to-right AST expression lowering for literals, identifiers, `!`, and all 13 binary AST operators, with one new `t1`, `t2`, ... temporary per unary/binary result;
+  - plain/initialized declarations, assignments, print, sequential statements, empty blocks, standalone/nested blocks, and no optimization or short-circuit lowering;
+  - per-generation symbol-table resolution plus binding-owned storage names: globals retain source names while non-global declarations use `name@scope-id`;
+  - a pre-emission reservation pass over all direct global declarations, so `t1`, `t2`, ... allocation skips both earlier and later global storage-name collisions;
+  - initializer lowering before inner declaration insertion, legal shadowing, outer restoration, sibling isolation, and collision-aware counter reset for every generation; and
+  - a test-only parser -> semantic gate -> TAC driver; semantic failure emits existing diagnostics and no TAC, while `if`/`while` return `TAC_UNSUPPORTED_NODE` with no partial program.
+- **Why:** The manual requires linear TAC for expressions and statements, and M8 needs a deterministic owned instruction foundation before adding labels and jumps.
+- **Technical decisions:** Direct literal/identifier operands emit no instruction; unary/binary operations materialize the lowest available `tN` after reserving every unqualified global name; plain declarations and empty blocks emit nothing; float operands use readable `%.15g` formatting with `.0` retained for integral floating values; logical values are materialized rather than short-circuited.
+- **Tests/commands:** WSL Bash syntax validation followed by `make clean`, `make`, `make test`, `make clean`, and explicit absence check for `build/`; Windows Git diff/whitespace/artifact checks.
+- **Result:** Final validation passed 14 TAC unit tests and 12 TAC integration cases plus every prior suite: generated header, 15 AST, 30 symbol-table, 10 lexer, 32 parser, and 26 semantic. Collision goldens cover global `t1` before use, after use, and as an initialized declaration. Bison reported zero conflicts, GCC/Flex/Bison emitted no actionable warnings, and final cleanup removed `build/`.
+- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Dipro review: `Dipro: Generated TAC for expressions and statements`.
 
 ## Entry template
 

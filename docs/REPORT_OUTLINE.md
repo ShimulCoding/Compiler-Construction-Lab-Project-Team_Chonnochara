@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1-M5 language/lexer/parser/AST/symbol-table evidence and uncommitted M6 semantic evidence are prepared; TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1-M6 language/front-end evidence is committed, and uncommitted M7 non-control-flow TAC evidence is prepared. M8 control-flow TAC and final end-to-end result sections remain incomplete. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -123,15 +123,17 @@ M5/M6 boundary: M5 proves reusable symbol storage and scope mechanics; M6 consum
 
 ## 10. Intermediate Code (TAC)
 
-- Instruction format and at-most-three-address principle
-- expression lowering and evaluation order
-- temporary/label generation
-- assignment and print
-- initialized-declaration expression lowering and final store; no TAC for plain declarations or empty blocks
-- relational/logical strategy
-- `if`, `if-else`, and `while` control-flow patterns
-- sample source-to-TAC walkthrough
-- golden tests
+- M7 implemented files: `src/codegen/tac.h`, `tac.c`; direct tests in `tests/unit/test_tac.c`; parser/semantic/TAC phase driver in `tests/support/tac_driver.c`
+- owned dynamic `TacProgram` with tagged assignment, unary, binary, and print instructions; copied result/operator/operand strings; safe destruction and explicit statuses
+- expression lowering in deterministic left-to-right AST order; literals/identifiers as direct operands; one lowest-available `t1`, `t2`, ... result per unary/binary node; counter reset per generation
+- pre-emission reservation of every unqualified global declaration name, including later declarations, so compiler temporaries cannot collide with legal source storage names
+- assignment and identifier print spelling; initialized-declaration expression then final store; no TAC for plain declarations or empty blocks
+- all arithmetic, relational, equality, and logical operators; materialized Boolean values with no short-circuit or optimization
+- reusable symbol-table resolution plus `name@scope-id` nested storage names; initializer-before-inner-binding, restoration, and sibling isolation
+- semantic-success phase gate; no TAC for invalid input; explicit unsupported/no-partial result for M7 control-flow ASTs
+- 14 direct unit checks, 12 integration cases, repeated output, and exact TAC/error/exit goldens
+- M8 remaining work: deterministic labels and conditional/unconditional jumps for `if`, `if-else`, and `while`
+- M9 remaining work: final driver with complete AST/TAC output contract and full source-to-TAC demo
 
 ## 11. Challenges and Solutions
 
