@@ -1,0 +1,1 @@
+semantic error at line 4 [SEM_SCOPE_VIOLATION]: identifier 'local' is outside its declaring scope

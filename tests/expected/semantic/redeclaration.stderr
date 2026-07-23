@@ -1,0 +1,1 @@
+semantic error at line 2 [SEM_REDECLARATION]: identifier 'value' is already declared in this scope

@@ -1,0 +1,1 @@
+semantic error at line 5 [SEM_SCOPE_VIOLATION]: identifier 'first' is outside its declaring scope

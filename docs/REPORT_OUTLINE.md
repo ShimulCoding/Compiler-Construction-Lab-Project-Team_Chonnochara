@@ -1,6 +1,6 @@
 # Project Report Outline
 
-Status: M1-M4 language/lexer/parser/AST evidence and uncommitted M5 symbol-table evidence are prepared; semantic/TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
+Status: M1-M5 language/lexer/parser/AST/symbol-table evidence and uncommitted M6 semantic evidence are prepared; TAC/end-to-end result chapters remain outlines. The official manual's report structure is mandatory; section numbers below are normalized for the team's final report.
 
 ## Front matter
 
@@ -93,13 +93,16 @@ M2 evidence: clean C11 build, 15 direct AST unit tests, generated Bison token-he
 
 ## 8. Semantic Analysis
 
-- AST traversal and inferred types
-- all six required error categories
-- operator/type compatibility matrix
-- statement-order visibility and condition rules
-- initialized-declaration traversal, exact compatibility, type-mismatch classification, and cascade suppression
-- diagnostic suppression/recovery policy
-- isolated semantic tests and results
+- Implemented files: `src/semantic/semantic.h` and `semantic.c`; test-only integration in `tests/support/semantic_driver.c`
+- Public `semantic_analyze` contract, caller-owned AST, private analyzer-owned symbol table, diagnostic count, and phase statuses
+- Source-order AST traversal; program/global relationship; exactly one scope per block; no extra control-statement scopes
+- Active/current/history lookup mapping to declaration resolution, redeclaration, scope violation, and undeclared diagnostics
+- Internal valid/type expression result without extending the three source-language types
+- Operator/type compatibility matrix, operation-local numeric promotion, exact storage compatibility, and Boolean condition rules
+- Initialized-declaration traversal, pre-binding initializer visibility, post-analysis insertion, redeclaration preservation, and cascade suppression
+- Exact six-code taxonomy and deterministic line-aware diagnostic format
+- Six valid plus twenty invalid semantic cases with exact stderr/exit goldens; full M2-M5 regression results
+- Limitation: semantic state is transient and no TAC/final compiler output is produced yet
 
 Give this chapter appropriate depth because semantic correctness has the highest indicative implementation weight.
 
@@ -116,7 +119,7 @@ Give this chapter appropriate depth because semantic correctness has the highest
 - linear lookup complexity and why it is clearer than a hash framework at this language/project scale
 - 30 direct tests, identical repeated output, and `tests/expected/symbol_table_unit.stdout`
 
-M5 limitation: this evidence proves symbol storage and scope mechanics only. M6 must traverse AST blocks/declarations/uses and translate statuses into line-aware `SEM_REDECLARATION`, `SEM_SCOPE_VIOLATION`, and `SEM_UNDECLARED` diagnostics.
+M5/M6 boundary: M5 proves reusable symbol storage and scope mechanics; M6 consumes that API during AST traversal and owns source-facing name/type/operator/context diagnostics. Neither generates TAC.
 
 ## 10. Intermediate Code (TAC)
 

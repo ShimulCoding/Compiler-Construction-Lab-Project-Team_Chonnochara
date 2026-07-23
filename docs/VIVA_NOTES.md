@@ -1,6 +1,6 @@
 # Viva Notes
 
-Status: M5 symbol-table management plus the M2-M4 lexer/parser/AST path are implemented and documented. Every member must understand the complete project, not only their attributed commits.
+Status: M6 semantic validation plus the M2-M5 lexer/parser/AST/symbol-table path are implemented and documented. TAC and the final driver remain future work. Every member must understand the complete project, not only their attributed commits.
 
 ## One-minute project explanation
 
@@ -86,7 +86,7 @@ Flex reports the invalid lexeme first and returns Bison's built-in `YYUNDEF`. Th
 
 ### What is the M4 public/test interface?
 
-`parser_parse(FILE *, AstNode **)` in `src/parser/parser.h` returns success, lexical failure, syntax failure, or an internal/test failure. `tests/support/parser_driver.c` opens one source, invokes that function, prints the AST only on success, and frees it. It is a phase-test driver; semantic analysis, TAC, and the final CLI remain later milestones.
+`parser_parse(FILE *, AstNode **)` in `src/parser/parser.h` returns success, lexical failure, syntax failure, or an internal/test failure. `tests/support/parser_driver.c` opens one source, invokes that function, prints the AST only on success, and frees it. It remains a parser phase-test driver; M6 uses a separate semantic phase-test driver, while TAC and the final CLI remain later milestones.
 
 ### What do the M4 tests prove?
 
@@ -130,7 +130,7 @@ Each successful symbol stores a table-owned copy of its identifier name, `ValueT
 
 ### How are nested scopes handled?
 
-`symbol_table_create` starts global scope ID 0/depth 0. Entering creates a permanent child frame, assigns the next monotonic ID, sets depth to parent depth plus one, and makes it current. Exiting marks the current child inactive and restores its parent; attempting to exit global returns `SYMBOL_SCOPE_CANNOT_EXIT_GLOBAL`. Later M6 block traversal will call this pair once per AST block.
+`symbol_table_create` starts global scope ID 0/depth 0. Entering creates a permanent child frame, assigns the next monotonic ID, sets depth to parent depth plus one, and makes it current. Exiting marks the current child inactive and restores its parent; attempting to exit global returns `SYMBOL_SCOPE_CANNOT_EXIT_GLOBAL`. M6 calls this pair exactly once per AST block.
 
 ### Scope ID versus depth?
 
@@ -160,9 +160,25 @@ Retained frames preserve inactive declaration history, and individually allocate
 
 `symbol_table_print` visits scope frames in creation order and symbols in declaration order. It prints scope ID, depth, active state, name, type, and line, using `<empty>` for an empty frame. It contains no pointers or platform paths. Thirty direct tests run twice and match one tracked golden exactly.
 
-### What does M5 not implement?
+### What is the M5/M6 boundary?
 
-It does not walk the AST, emit `SEM_...` diagnostics, infer expression types, validate assignments/operators, or generate TAC. M6 will translate lookup/insertion outcomes into undeclared, scope-violation, and redeclaration diagnostics.
+M5 is a reusable scope/name data structure and emits no `SEM_...` text. M6 owns AST traversal, source-facing classification, type inference, and operator/context checks. Neither module generates TAC.
+
+### What is the M6 public API?
+
+`semantic_analyze(const AstNode *program, FILE *diagnostics, SemanticResult *result)` borrows a parser-built program AST, creates and destroys a private symbol table, writes deterministic diagnostics to the supplied stream, and returns success, semantic-error, or internal-error status. `SemanticResult` reports the number of semantic diagnostics.
+
+### How does semantic traversal preserve declaration order?
+
+The program uses the symbol table's existing global scope. Statements are visited from index 0 upward. A block enters one scope before its list and exits afterward. A declaration first checks the current scope, then analyzes its initializer against already active bindings, and only then inserts a fresh non-redeclared name. Therefore there is no hoisting or self-visibility.
+
+### How are identifier failures classified?
+
+M6 checks active scopes first. If no active binding exists, inactive history is checked. A historical declaration produces `SEM_SCOPE_VIOLATION`; no active or historical declaration produces `SEM_UNDECLARED`. History is evidence only and never makes a name usable.
+
+### How are semantic expression failures represented?
+
+The source language still has only `int`, `float`, and `bool`. Internally, each expression visit returns a pair containing `valid` and `ValueType`. When a child is invalid, a parent skips a dependent operator/assignment/context diagnostic, but traversal still examines independent siblings and later statements.
 
 ### Syntax error versus semantic error?
 
@@ -170,7 +186,22 @@ A syntax error violates the CFG, such as a missing semicolon. A semantic error h
 
 ### How does type checking work?
 
-Each expression visit returns an inferred type. Numeric `int`/`float` pairs promote to `float` only within an operation; `int,int` stays `int`, `%` is integer-only, comparisons return `bool`, and logical operators require booleans. Assignment statements and declaration initializers require exact compatible types. An incompatible initializer is `SEM_TYPE_MISMATCH`; an incompatible later assignment is `SEM_INVALID_ASSIGNMENT`. An internal error type prevents one mistake from causing many misleading follow-up errors. The complete matrix is in `docs/LANGUAGE_SPEC.md`.
+Each expression visit returns a transient valid/type result. Numeric `int`/`float` pairs promote to `float` only within an operation; `int,int` stays `int`, `%` is integer-only, comparisons return `bool`, and logical operators require booleans. Assignment statements and declaration initializers require exact compatible types. An incompatible initializer is `SEM_TYPE_MISMATCH`; an incompatible later assignment is `SEM_INVALID_ASSIGNMENT`. An invalid result prevents one mistake from causing misleading dependent errors. The complete matrix is in `docs/LANGUAGE_SPEC.md`.
+
+### Which semantic diagnostic code is used for each case?
+
+- `SEM_UNDECLARED`: no active or previously exited declaration.
+- `SEM_REDECLARATION`: duplicate name in the current scope.
+- `SEM_SCOPE_VIOLATION`: name exists only in inactive history.
+- `SEM_TYPE_MISMATCH`: incompatible initializer, equality domain, or non-Boolean condition.
+- `SEM_INVALID_ASSIGNMENT`: incompatible standalone assignment after both sides resolve/type-check.
+- `SEM_INVALID_OPERATOR`: operand types are outside an operator's admitted signature.
+
+The prompt's illustrative `SEM_INVALID_EXPRESSION` and `SEM_INVALID_CONDITION` labels are not used because the repository contract had already approved the exact mapping above.
+
+### What do the M6 tests prove?
+
+Six valid fixtures must exit 0 silently. Twenty invalid fixtures compare exact stderr and exit 3. Together they cover declarations, assignments, print, control flow, nested/sibling scopes, shadow restoration, initializer visibility/cascade behavior, every operator family, exact numeric storage rejection, conditions, all diagnostic families, line tracking, and deterministic multiple-error order. They do not prove TAC, final CLI behavior, or absence of memory leaks.
 
 ### Why does `print` accept only an identifier?
 

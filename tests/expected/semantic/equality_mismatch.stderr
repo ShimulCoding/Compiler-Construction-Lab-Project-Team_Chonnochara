@@ -1,0 +1,1 @@
+semantic error at line 3 [SEM_TYPE_MISMATCH]: operator '==' cannot compare values of type bool and int

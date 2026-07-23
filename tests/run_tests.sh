@@ -15,6 +15,7 @@ symbol_table_repeat_stderr="$result_directory/symbol_table_unit.repeat.stderr"
 normalized_symbol_table_expected="$result_directory/symbol_table_unit.expected"
 lexer_binary="$repository_root/build/lexer_test"
 parser_binary="$repository_root/build/parser_test"
+semantic_binary="$repository_root/build/semantic_test"
 
 mkdir -p "$result_directory"
 
@@ -381,3 +382,111 @@ run_parser_failure \
     "$repository_root/tests/expected/parser/lexical_then_syntax.exit"
 
 printf '%s\n' 'PASS: 32 parser cases including all operators, AST goldens, recovery, LF/CRLF, and lexical-error suppression'
+
+run_semantic_success()
+{
+    local case_name=$1
+    local source_file=$2
+    local case_stdout="$result_directory/semantic_$case_name.stdout"
+    local case_stderr="$result_directory/semantic_$case_name.stderr"
+
+    if ! "$semantic_binary" "$source_file" \
+        >"$case_stdout" 2>"$case_stderr"; then
+        printf 'FAIL: semantic success case %s returned nonzero\n' \
+            "$case_name" >&2
+        cat "$case_stderr" >&2
+        exit 1
+    fi
+    if [ -s "$case_stdout" ] || [ -s "$case_stderr" ]; then
+        printf 'FAIL: semantic success case %s produced unexpected output\n' \
+            "$case_name" >&2
+        cat "$case_stdout" "$case_stderr" >&2
+        exit 1
+    fi
+}
+
+run_semantic_failure()
+{
+    local case_name=$1
+    local source_file=$2
+    local expected_stderr_file=$3
+    local expected_exit_file=$4
+    local case_stdout="$result_directory/semantic_$case_name.stdout"
+    local case_stderr="$result_directory/semantic_$case_name.stderr"
+    local normalized_semantic_expected="$result_directory/semantic_$case_name.expected.stderr"
+    local actual_status
+    local expected_status
+
+    if "$semantic_binary" "$source_file" \
+        >"$case_stdout" 2>"$case_stderr"; then
+        actual_status=0
+    else
+        actual_status=$?
+    fi
+    expected_status=$(tr -d '\r\n' <"$expected_exit_file")
+
+    if [ "$actual_status" -ne "$expected_status" ]; then
+        printf 'FAIL: semantic failure case %s exited %s, expected %s\n' \
+            "$case_name" "$actual_status" "$expected_status" >&2
+        exit 1
+    fi
+    if [ -s "$case_stdout" ]; then
+        printf 'FAIL: semantic failure case %s wrote unexpected standard output\n' \
+            "$case_name" >&2
+        cat "$case_stdout" >&2
+        exit 1
+    fi
+
+    sed 's/\r$//' "$expected_stderr_file" \
+        >"$normalized_semantic_expected"
+    if ! cmp -s "$normalized_semantic_expected" "$case_stderr"; then
+        printf 'FAIL: semantic diagnostic differs for %s\n' \
+            "$case_name" >&2
+        diff -u "$normalized_semantic_expected" "$case_stderr" >&2 || true
+        exit 1
+    fi
+}
+
+for semantic_case in \
+    core \
+    initializer_outer \
+    nested_blocks \
+    numeric_promotion \
+    shadow_restore \
+    sibling_scopes
+do
+    run_semantic_success \
+        "$semantic_case" \
+        "$repository_root/tests/semantic/valid/$semantic_case.mc"
+done
+
+for semantic_case in \
+    equality_mismatch \
+    if_condition \
+    initializer_cascade \
+    initializer_exact_mismatch \
+    initializer_mismatch \
+    invalid_arithmetic \
+    invalid_assignment \
+    invalid_logical \
+    invalid_not \
+    invalid_numeric_assignment \
+    invalid_relational \
+    invalid_remainder \
+    multiple_errors \
+    redeclaration \
+    redeclaration_initializer \
+    scope_violation \
+    self_initializer \
+    sibling_scope \
+    undeclared \
+    while_condition
+do
+    run_semantic_failure \
+        "$semantic_case" \
+        "$repository_root/tests/semantic/invalid/$semantic_case.mc" \
+        "$repository_root/tests/expected/semantic/$semantic_case.stderr" \
+        "$repository_root/tests/expected/semantic/$semantic_case.exit"
+done
+
+printf '%s\n' 'PASS: 26 semantic cases covering scopes, declarations, types, operators, conditions, and deterministic diagnostics'

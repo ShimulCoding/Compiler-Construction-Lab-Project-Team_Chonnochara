@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Status: **M5 adds the tested nested-scope symbol-table foundation to the M4 source-to-AST path. AST semantic traversal, type checking, TAC, and the final compiler driver remain unimplemented.**
+Status: **M6 adds tested semantic AST traversal and validation to the M5 source-to-AST/symbol-table path. TAC and the final compiler driver remain unimplemented.**
 
 ## Implemented M2 foundation
 
@@ -10,7 +10,7 @@ Status: **M5 adds the tested nested-scope symbol-table foundation to the M4 sour
 - `src/ast/ast.c` implements allocation, owned string copies, list growth, constructor validation, and recursive destruction.
 - `src/ast/ast_print.c` implements deterministic two-space-indented tree output with a line on every node.
 - `src/parser/parser.y` began as M2's 32-token interface; M4 now implements the complete CFG while preserving the generated header as Flex's sole token authority.
-- `Makefile` incrementally builds the AST, lexer, complete parser, and phase-test executables while confining generated output to ignored `build/`.
+- `Makefile` incrementally builds the AST, lexer, parser, symbol table, semantic analyzer, and phase-test executables while confining generated output to ignored `build/`.
 
 ## Implemented M3 lexer
 
@@ -39,7 +39,16 @@ Status: **M5 adds the tested nested-scope symbol-table foundation to the M4 sour
 - Each scope owns a declaration-ordered linked list of individually allocated symbols. A symbol stores its copied name, `ValueType`, `SourceLocation`, scope ID, and scope depth; its address remains stable while the table exists.
 - Current lookup supports same-scope duplicate checks. Active lookup walks parent frames from inner to outer. History lookup searches only inactive frames from newest to oldest, providing evidence for M6's scope-violation versus undeclared distinction without resolving an inactive symbol.
 - `symbol_table_print` produces address-free creation-order snapshots with active state and declaration order. `tests/unit/test_symbol_table.c` exercises 30 behaviors, and the runner compares two executions with `tests/expected/symbol_table_unit.stdout`.
-- The subsystem is deliberately independent of the AST. M6 will enter/exit once per block and enforce initializer-before-insertion order; M5 emits no semantic diagnostics.
+- The subsystem is deliberately independent of the AST. M6 now calls its API once per block and enforces initializer-before-insertion order; the M5 module itself still emits no semantic diagnostics.
+
+## Implemented M6 semantic analyzer
+
+- `src/semantic/semantic.h` exposes `semantic_analyze`, three phase statuses, and a diagnostic-count result without transferring AST ownership.
+- `src/semantic/semantic.c` creates one private symbol table per analysis, visits parser-built statements in source order, and enters/exits exactly once for every AST block.
+- Declarations use current-scope lookup, analyze an optional initializer before insertion, apply exact compatibility, and insert every non-redeclared name after analysis so later source uses do not receive a dependent undeclared cascade.
+- Identifier resolution uses active lookup first and inactive history second. This keeps shadowing/restoration and sibling isolation correct while distinguishing `SEM_SCOPE_VIOLATION` from `SEM_UNDECLARED`.
+- Expressions return an internal valid/type pair, apply the approved numeric/logical/equality rules, and suppress only diagnostics that depend on an already invalid result.
+- `tests/support/semantic_driver.c` is a phase-test tool, not the final compiler. The runner validates 6 silent-success cases and 20 exact semantic-diagnostic/exit cases.
 
 ## Required pipeline
 
@@ -198,9 +207,9 @@ Lookup is intentionally linear: symbols are scanned in declaration order within 
 
 Input: AST root.
 
-Output: annotations/inferred expression types, populated symbol information, diagnostic count, and success/failure.
+Output: a success/error/internal status and semantic diagnostic count. Inferred expression types and symbol bindings are transient analysis state; the AST is not annotated or modified.
 
-Traversal is statement-order sensitive. Every block—including a standalone or empty block—enters a scope before its statements and exits afterward. The block visitor is the sole owner of that enter/exit pair; `if`/`while` visitors delegate to their block children and must not create a duplicate scope. For a declaration, check same-scope redeclaration and analyze any initializer against the pre-declaration environment; only then insert a fresh binding into the current scope. The binding is inserted even if initializer analysis failed, preventing later undeclared cascades, but a rejected redeclaration never replaces the first binding. Expressions return an inferred type or an internal error type, allowing one root diagnostic without a cascade of misleading follow-ups.
+Traversal is statement-order sensitive. Every block—including a standalone or empty block—enters a scope before its statements and exits afterward. The block visitor solely owns that enter/exit pair; `if`/`while` visitors delegate to their block children and create no duplicate scope. For a declaration, the analyzer checks same-scope redeclaration and analyzes any initializer against the pre-declaration environment before inserting a fresh binding. The binding is inserted even if initializer analysis failed, preventing later undeclared cascades, but a rejected redeclaration never replaces the first binding. Expressions return an internal valid/type result, allowing one root diagnostic without dependent follow-ups.
 
 The accepted type matrix is in `docs/LANGUAGE_SPEC.md` and requires:
 
@@ -210,7 +219,9 @@ The accepted type matrix is in `docs/LANGUAGE_SPEC.md` and requires:
 - boolean-only `&&`, `||`, and `!`;
 - exact storage compatibility for assignment statements and declaration initializers, with construct-specific diagnostics;
 - boolean conditions for `if`/`while`; and
-- exact-type assignment, Boolean conditions, and an identifier-only `print` operand.
+- identifier-only `print` syntax whose name must resolve actively.
+
+The analyzer owns its private `SymbolTable`; the caller owns the AST and diagnostic stream. It returns 0 for semantic success, 3 when source-facing semantic diagnostics exist, and 4 for invalid arguments or internal data-structure/output failures. These statuses match the planned phase contract but do not make the M6 test driver the final CLI.
 
 ### TAC generator (`src/codegen/`)
 
@@ -240,6 +251,7 @@ Logical expressions are materialized into Boolean temporaries. The M1 language c
 - Parser semantic nodes/lists own their children while on the parse stack. Successful actions transfer them upward and finally into the AST root; Bison destructors clean abandoned values on error paths.
 - AST nodes own duplicated identifier strings and their child/list storage.
 - The symbol table owns its copied symbol names and scope records.
+- The semantic analyzer owns its private symbol table and transient type results; it borrows the AST for one call.
 - TAC storage owns formatted instruction strings or structured instruction operands.
 - The driver owns the phase contexts and performs cleanup on both success and error paths.
 
@@ -253,7 +265,7 @@ Implemented diagnostic form:
 <phase> error at line <n> [<stable-code>]: <specific message>
 ```
 
-Diagnostic policy should distinguish:
+Semantic diagnostic policy distinguishes:
 
 - lexical invalid input;
 - parser expectation/recovery errors;
@@ -269,13 +281,13 @@ Tests should verify diagnostic phase, line, essential wording, and exit status w
 The verified target is Ubuntu 24.04.4 LTS on WSL2. Windows owns the canonical Git worktree while WSL compiles/tests the same checkout through `/mnt/e`; native Windows compilation remains unsupported. The implemented Makefile provides:
 
 ```text
-make          build AST, symbol-table, token, lexer, and parser phase tests
-make test     run M2-M4 regressions plus M5 symbol-table/golden tests
+make          build AST, symbol-table, token, lexer, parser, and semantic phase tests
+make test     run M2-M5 regressions plus M6 semantic fixtures/goldens
 make clean    remove only the generated build/ directory
 ```
 
-The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> phase-test executables`. Later milestones add semantic/TAC/compiler objects without duplicating token definitions. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and generates temporary CRLF sources under `build/test-results/` without tracking generated input.
+The dependency is `src/parser/parser.y -> build/generated/parser.tab.c + parser.tab.h -> generated lex.yy.c -> parser/lexer/AST objects -> semantic analyzer + symbol table -> phase-test executables`. Later milestones add TAC/compiler objects without duplicating token definitions. The quoted-path-safe runner propagates failures, normalizes tracked CRLF-sensitive goldens, and generates temporary CRLF sources under `build/test-results/` without tracking generated input.
 
-Current `make test` evidence is one generated-header check, 15 direct AST tests with unchanged golden output, 30 symbol-table tests with identical repeated golden output, 10 lexer cases, and 32 parser cases including seven parser-built AST goldens, all required grammar boundaries, both recovery points, and lexical/syntax diagnostic integration.
+Current `make test` evidence is one generated-header check, 15 direct AST tests with unchanged golden output, 30 symbol-table tests with identical repeated golden output, 10 lexer cases, 32 parser cases, and 26 semantic cases. Semantic evidence covers source-order visibility, every block/scope rule, all six approved diagnostic families, every operator family, exact storage compatibility including rejected implicit numeric conversion, cascade suppression, and deterministic multiple-error order.
 
 Routine comparisons should write ephemeral output under `build/test-results/` so ordinary test runs do not dirty Git. To satisfy grading evidence, deliberately promote stable release/milestone results to paired curated actual-output files and record their environment/command in `TEST_MATRIX.md`.

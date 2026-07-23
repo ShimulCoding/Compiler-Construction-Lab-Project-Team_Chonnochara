@@ -111,7 +111,7 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 
 ## 21 July 2026 — M5 nested-scope symbol table
 
-- **Intended contributor/owner:** Shimul. Implementation is prepared and validated for review; ownership and a Git commit remain pending explicit approval.
+- **Contributor/owner:** Shimul; reviewed and explicitly approved as the M5 owner.
 - **Task:** Implement only the reusable nested-scope symbol-table subsystem, focused unit/golden evidence, build integration, and related documentation without AST semantic traversal or diagnostics.
 - **Files implemented:** `src/symbol_table/symbol_table.h`, `src/symbol_table/symbol_table.c`, `tests/unit/test_symbol_table.c`, and `tests/expected/symbol_table_unit.stdout`.
 - **Supporting changes:** Incremental `Makefile`/`tests/run_tests.sh` rules plus concise project-state, architecture, decisions, testing, report, presentation, viva, roadmap, and traceability updates.
@@ -125,7 +125,26 @@ Record meaningful milestones only. A log entry is evidence of work performed, no
 - **Technical decisions:** Scope frames and individually allocated symbols remain alive until table destruction; exit marks a frame inactive rather than deleting it. Linear lists favor clarity at this project scale. Internal result enums report duplicate/invalid/allocation/global-exit outcomes without emitting future `SEM_...` text.
 - **Tests/commands:** Baseline, focused, and final WSL validation with `make clean`, `make`, `make symbol-table-test`, direct unit execution, `make test`, and final `make clean`; Bash syntax plus Windows Git whitespace, scope, staging, and artifact checks.
 - **Result:** C11 compilation emitted no actionable warnings. All 30 symbol-table tests passed, two complete outputs matched each other and the tracked golden, and the generated-header, 15 AST, 10 lexer, and 32 parser regressions remained passing. Cleanup paths executed without crashes; no leak-analysis tool was installed or run, so no leak-free claim is made.
-- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Shimul review: `Shimul: Implemented nested-scope symbol table management`.
+- **Git handling:** Committed and pushed as `1f319c6b44e64fceba968a0bfbab09f55dd1a059` with message `Shimul: Implemented nested-scope symbol table management` after separate approvals.
+
+## 24 July 2026 — M6 semantic analysis
+
+- **Intended contributor/owner:** Nayem. Implementation and validation are prepared for review; ownership and a Git commit remain pending explicit approval.
+- **Task:** Implement the complete semantic pass over parser-built ASTs without adding TAC, a final compiler driver, language extensions, or unrelated refactors.
+- **Files implemented:** `src/semantic/semantic.h`, `src/semantic/semantic.c`, `tests/support/semantic_driver.c`, semantic fixtures under `tests/semantic/`, and exact diagnostic/exit goldens under `tests/expected/semantic/`.
+- **Supporting changes:** Incremental `Makefile`/`tests/run_tests.sh` integration and concise updates to project state, architecture, decisions, testing, roadmap, report, presentation, viva, language-status, and requirement traceability.
+- **Implemented:**
+  - source-order AST traversal using a private M5 symbol table and exactly one enter/exit pair for each AST block;
+  - current/active/history lookup for redeclaration, normal resolution, scope violation, and undeclared classification;
+  - initializer-before-binding analysis, legal shadowing, outer restoration, sibling isolation, and post-error insertion of every non-redeclared declaration;
+  - transient expression-type inference with local numeric promotion, integer-only remainder, numeric ordered comparison, compatible equality, Boolean logical operators, exact storage compatibility, and Boolean control conditions;
+  - stable `SEM_UNDECLARED`, `SEM_REDECLARATION`, `SEM_SCOPE_VIOLATION`, `SEM_TYPE_MISMATCH`, `SEM_INVALID_ASSIGNMENT`, and `SEM_INVALID_OPERATOR` diagnostics with source lines and dependent-cascade suppression; and
+  - a test-only parser-to-semantic driver that is silent on success, emits diagnostics on stderr, and returns semantic status 3 when errors exist.
+- **Why:** TAC must consume only an AST whose names, scopes, operands, assignments, and control conditions satisfy the approved language contract. The user-approved M6 scope consolidates the roadmap's former separate declaration/use and type-checking milestones without changing the language.
+- **Technical decisions:** The public analyzer returns only status plus diagnostic count and does not annotate or own the AST. An internal `{valid, ValueType}` result represents expression success/error without adding a source type. Boolean/numeric equality is `SEM_TYPE_MISMATCH`; invalid operator signatures are `SEM_INVALID_OPERATOR`; non-Boolean conditions are contextual `SEM_TYPE_MISMATCH`. Independent children/statements continue after recoverable semantic errors.
+- **Tests/commands:** Focused `make semantic-test`; integrated `make test`; final required sequence is `make clean`, `make`, `make test`, `make clean`, followed by Windows Git diff/artifact checks.
+- **Result:** The final clean/build/test/clean sequence passed 26 semantic cases (6 valid, 20 invalid) plus the generated-header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, and 32 parser cases. Bison reported zero conflicts, GCC/Flex/Bison emitted no actionable warnings, and final cleanup removed `build/`.
+- **Git handling:** No files staged, no commit created, and nothing pushed. Proposed message after Nayem review: `Nayem: Implemented semantic validation for the language rules`.
 
 ## Entry template
 

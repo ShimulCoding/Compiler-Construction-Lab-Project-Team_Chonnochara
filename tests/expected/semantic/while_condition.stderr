@@ -1,0 +1,1 @@
+semantic error at line 2 [SEM_TYPE_MISMATCH]: while condition must have type bool, found float

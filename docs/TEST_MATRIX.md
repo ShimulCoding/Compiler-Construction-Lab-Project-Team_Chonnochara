@@ -1,8 +1,8 @@
 # Test Matrix
 
-Last implementation/test update: 21 July 2026.
+Last implementation/test update: 24 July 2026.
 
-The M5 runner now adds direct symbol-table unit/golden evidence to the production lexer and complete Bison grammar regressions. Scope data-structure cases below have actual results; AST semantic traversal, user-facing semantic diagnostics, TAC, final-driver, and end-to-end cases remain blocked. Do not treat successful symbol-table operations as implemented semantic analysis.
+The M6 runner adds parser-to-AST semantic integration and exact diagnostic/exit goldens to all M2-M5 evidence. Semantic analysis is implemented and tested; TAC, the final driver, and end-to-end source-to-TAC cases remain blocked.
 
 ## Inherited template cases
 
@@ -45,21 +45,21 @@ The M5 runner now adds direct symbol-table unit/golden evidence to the productio
 | SYN-05F | Bare expression statement | Isolated fixture rejected | `value + 1;` produced exact syntax diagnostic and exit 2 | Pass (M4 parser) |
 | SYN-05G | Numeric unary sign | Isolated fixture rejected | `value = -1;` produced exact syntax diagnostic and exit 2 | Pass (M4 parser) |
 | SYN-06 | Official initializer and block derivations | `bool b = 5 + 3.2;`, `{ }`, and a multiply nested standalone block all parse before semantics | All forms produced reviewed AST structures; official sample also parsed | Pass (M4 parser) |
-| SEM-01 | Use before declaration/never declared | Undeclared-variable diagnostic | Not created | Missing |
-| SEM-02A | Same-scope duplicate | `SEM_REDECLARATION`; first valid binding remains active | Not created | Missing |
-| SEM-02B | Nested shadow | Separate valid fixture succeeds and restores the outer binding on scope exit | Not created | Missing |
-| SEM-03 | Use after standalone/control/sibling block scope | Each brace pair establishes one scope; post-exit use receives the distinct out-of-scope diagnostic | Not created | Missing |
-| SEM-04 | Non-Boolean `if` and `while` conditions | Two isolated `SEM_TYPE_MISMATCH` fixtures state expected `bool` and actual type | Not created | Missing |
-| SEM-05 | Invalid assignment | Isolated LHS/RHS compatibility diagnostic | Not created | Missing |
-| SEM-06 | Invalid operator operands | e.g. boolean arithmetic or numeric logical operands rejected | Not created | Missing (mandatory) |
-| SEM-07 | Boolean/numeric equality | `SEM_TYPE_MISMATCH` names both incompatible domains without claiming one expected operand type | Not created | Missing |
-| SEM-08 | Valid mixed numeric operations and exact-type stores | Operation-local promotion plus matching assignment/initializer result types succeed; exit 0 | Not created | Missing |
-| SEM-09 | Implicit assignment conversion | Isolated `float = int` fixture produces `SEM_INVALID_ASSIGNMENT`; exit 3 | Not created | Missing |
-| SEM-10A | Valid initialized declarations | `int`, `float`, and `bool` initializers—including a mixed numeric expression yielding `float`—succeed | Not created | Missing |
-| SEM-10B | Manual initialized-declaration mismatch | `bool b = 5 + 3.2;` produces one `SEM_TYPE_MISMATCH`, not syntax or invalid-assignment errors | Not created | Missing |
-| SEM-10C | Exact initializer compatibility | `float f = 1;` produces `SEM_TYPE_MISMATCH`; no implicit widening is invented | Not created | Missing |
-| SEM-10D | Initializer cascade suppression and later visibility | Invalid operator/name reports its root error without a dependent mismatch; the fresh binding is still inserted so a later use does not add `SEM_UNDECLARED` | Not created | Missing |
-| SEM-10E | Initializer visibility and redeclaration | New name is invisible in its initializer, an outer shadowed binding can resolve, and a duplicate does not replace the first binding; a rejected duplicate's initializer is traversed for independent root errors but receives no compatibility check | Not created | Missing |
+| SEM-01 | Use before declaration/never declared | Undeclared-variable diagnostic | `undeclared.mc` and `self_initializer.mc` matched exact `SEM_UNDECLARED` goldens | Pass (M6) |
+| SEM-02A | Same-scope duplicate | `SEM_REDECLARATION`; first valid binding remains active | `redeclaration.mc` emitted one redeclaration and its later exact-int assignment succeeded | Pass (M6) |
+| SEM-02B | Nested shadow | Separate valid fixture succeeds and restores the outer binding on scope exit | `shadow_restore.mc` and `initializer_outer.mc` exited 0 silently | Pass (M6) |
+| SEM-03 | Use after standalone/control/sibling block scope | Each brace pair establishes one scope; post-exit use receives the distinct out-of-scope diagnostic | Standalone and sibling fixtures matched exact `SEM_SCOPE_VIOLATION` goldens | Pass (M6) |
+| SEM-04 | Non-Boolean `if` and `while` conditions | Two isolated `SEM_TYPE_MISMATCH` fixtures state expected `bool` and actual type | Integer `if` and float `while` fixtures matched exact line-aware goldens | Pass (M6) |
+| SEM-05 | Invalid assignment | Isolated LHS/RHS compatibility diagnostic | Bool-to-int assignment matched exact `SEM_INVALID_ASSIGNMENT` at line 4 | Pass (M6) |
+| SEM-06 | Invalid operator operands | Boolean arithmetic, floating remainder, numeric logical/not, and Boolean ordering reject | Five isolated fixtures matched exact `SEM_INVALID_OPERATOR` goldens | Pass (M6) |
+| SEM-07 | Boolean/numeric equality | `SEM_TYPE_MISMATCH` names both incompatible domains without claiming one expected operand type | `equality_mismatch.mc` matched the exact bool/int diagnostic | Pass (M6) |
+| SEM-08 | Valid mixed numeric operations and exact-type stores | Operation-local promotion plus matching assignment/initializer result types succeed; exit 0 | Mixed arithmetic, ordering, equality, and Boolean composition exited 0 silently | Pass (M6) |
+| SEM-09 | Implicit assignment conversion | Isolated `float = int` fixture produces `SEM_INVALID_ASSIGNMENT`; exit 3 | `invalid_numeric_assignment.mc` matched the exact int-to-float rejection | Pass (M6) |
+| SEM-10A | Valid initialized declarations | `int`, `float`, and `bool` initializers—including a mixed numeric expression yielding `float`—succeed | `core.mc` and `numeric_promotion.mc` cover all three declaration types and exited 0 | Pass (M6) |
+| SEM-10B | Manual initialized-declaration mismatch | `bool b = 5 + 3.2;` produces one `SEM_TYPE_MISMATCH`, not syntax or invalid-assignment errors | Manual-derived expression matched one exact type-mismatch golden and later `print b` added no cascade | Pass (M6) |
+| SEM-10C | Exact initializer compatibility | `float f = 1;` produces `SEM_TYPE_MISMATCH`; no implicit widening is invented | `initializer_exact_mismatch.mc` matched the exact int-to-float initializer rejection and its later print resolved | Pass (M6) |
+| SEM-10D | Initializer cascade suppression and later visibility | Invalid operator/name reports its root error without a dependent mismatch; the fresh binding is still inserted so a later use does not add `SEM_UNDECLARED` | `initializer_cascade.mc` emitted only invalid operator, while `self_initializer.mc` emitted only undeclared; both later prints resolved | Pass (M6) |
+| SEM-10E | Initializer visibility and redeclaration | New name is invisible in its initializer, outer shadow can resolve, duplicate preserves first binding, and rejected initializer is still traversed | Outer/self/redeclaration fixtures all matched expected silent or multi-error behavior | Pass (M6) |
 | TAC-01 | Integer and float `+ - * /` plus contract-valid `%` | Correct temporaries, values, and evaluation order | Not created | Missing |
 | TAC-02 | All relational/logical operators | Correct boolean TAC and chosen logical strategy | Not created | Missing |
 | TAC-03 | `if`, `if-else`, nested branches | Deterministic conditional/unconditional jumps and labels | Not created | Missing |
@@ -152,6 +152,20 @@ Environment: Ubuntu 24.04.4 LTS on WSL2 with GCC 13.3.0 and GNU Make 4.3. Tests 
 | M5-U07 | Ownership/cleanup | Names are copied; lookup pointers remain stable; destroying global-only, active-nested, exited, and NULL tables does not crash | Ownership, stable pointer, and cleanup execution checks passed; no leak-detector claim | Pass |
 | M5-U08 | Deterministic printer | Scope/symbol ordering and active state match one tracked golden and repeat identically | Two executions matched each other and `tests/expected/symbol_table_unit.stdout`; 30/30 tests passed | Pass |
 | M5-V02 | M2-M4 regressions | Header, AST/golden, lexer, parser/goldens, diagnostics, recovery, and official sample remain unchanged | `make test` reported header PASS, 15 AST PASS, 30 symbol-table PASS, 10 lexer PASS, and 32 parser PASS | Pass |
+
+## M6 semantic-analysis validation
+
+Environment: Ubuntu 24.04.4 LTS on WSL2 with GCC 13.3.0, GNU Make 4.3, Flex 2.6.4, and Bison 3.8.2. `tests/support/semantic_driver.c` is test-only; TAC and final compiler behavior are not claimed.
+
+| ID | Check | Expected | Actual result | Status |
+| --- | --- | --- | --- | --- |
+| M6-V01 | Clean integration build | Parser, lexer, AST, symbol table, semantic analyzer, and test driver compile with existing C11 warning flags; Bison remains conflict-free | Focused and integrated builds completed with zero Bison conflicts and no actionable GCC/Flex/Bison warnings | Pass |
+| M6-S01 | Source-order declarations/uses | No hoisting; uninitialized and initialized declarations become visible after their statements | Valid core passed; self-initializer produced one undeclared diagnostic while its later print resolved | Pass |
+| M6-S02 | Block scope behavior | Exactly one scope per block; nested shadowing, restoration, and sibling isolation work | Four valid scope fixtures passed; two inactive-use fixtures produced exact scope-violation diagnostics | Pass |
+| M6-S03 | Expression typing/operators | Numeric promotion, integer `%`, numeric ordering, compatible equality, and Boolean logical/not rules | Valid mixed operations passed; arithmetic/remainder/logical/not/relational/equality invalid cases matched exact codes/messages | Pass |
+| M6-S04 | Storage/context rules | Initializers and assignments use exact compatibility; `if`/`while` require bool; print identifiers resolve | Valid core passed; initializer, assignment, and two condition cases matched exact line-aware goldens | Pass |
+| M6-S05 | Diagnostic classification/cascades | All approved codes are deterministic; dependent follow-ups are suppressed while independent errors continue | 20 invalid cases matched stderr and exit-3 goldens; multi-error case preserved source order; rejected initializer reported two independent errors | Pass |
+| M6-V02 | Full regressions | M2-M5 behavior remains unchanged | `make test` reported header PASS, 15 AST PASS, 30 symbol-table PASS, 10 lexer PASS, 32 parser PASS, and 26 semantic PASS | Pass |
 
 ## Audit commands and results
 

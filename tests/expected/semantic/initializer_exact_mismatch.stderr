@@ -1,0 +1,1 @@
+semantic error at line 1 [SEM_TYPE_MISMATCH]: cannot initialize 'amount' of type float with a value of type int

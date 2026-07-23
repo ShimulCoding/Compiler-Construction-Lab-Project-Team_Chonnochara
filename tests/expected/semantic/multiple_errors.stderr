@@ -1,0 +1,3 @@
+semantic error at line 1 [SEM_UNDECLARED]: identifier 'first' is not declared
+semantic error at line 5 [SEM_SCOPE_VIOLATION]: identifier 'gone' is outside its declaring scope
+semantic error at line 6 [SEM_TYPE_MISMATCH]: if condition must have type bool, found int

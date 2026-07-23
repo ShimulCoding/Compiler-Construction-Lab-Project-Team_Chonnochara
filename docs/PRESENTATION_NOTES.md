@@ -1,6 +1,6 @@
 # Presentation Notes
 
-Status: M5 adds a working nested-scope symbol-table foundation to the M4 source-to-token-to-AST path. No semantic AST traversal, TAC pipeline, final driver, slide deck, or screenshot evidence exists yet.
+Status: M6 adds working semantic AST traversal and diagnostics to the M5 source-to-token-to-AST/symbol-table path. TAC, the final driver, slide deck, and screenshot evidence do not yet exist.
 
 ## Core story
 
@@ -73,9 +73,20 @@ M1 contract summary for a future language slide:
 - Show the golden snapshot with scopes `0,1,2,3` at depths `0,1,2,1`; exited scopes remain visible as `active=false`, while the later sibling is independently active.
 - Trace shadowing: global `int x`, inner `float x`, and active lookup returning the inner record. After exit, lookup naturally follows the restored parent and returns the outer record again.
 - Contrast the three lookups: current scope for redeclaration, active inner-to-outer for normal resolution, and inactive history for later scope-violation evidence. History never makes an exited declaration usable.
-- Explain initializer order without claiming semantics: M6 will look up the outer `x`, analyze the initializer, and only then call insertion for the inner `x`.
+- Explain the M5 capability and M6 use: M6 looks up the outer `x`, analyzes the initializer, and only then calls insertion for the inner `x`.
 - Point out ownership: the table copies names; scope frames and symbols remain allocated until destruction; lookup pointers are borrowed and read-only. This keeps pointers stable and preserves history.
 - Run `make test` and identify the new summary: header check, 15 AST tests, 30 symbol-table tests with repeatable golden output, 10 lexer cases, and 32 parser cases.
+
+## M6 semantic-analysis demonstration material
+
+- Trace `semantic_analyze` from the program's global scope through statements in source order. Point out that only an AST block creates a child semantic scope; `if` and `while` delegate to their block nodes.
+- Demonstrate `int x = 1; { int x = x + 1; print x; } print x;`: the initializer sees the outer `x`, the inner binding then shadows it, and block exit restores the outer binding.
+- Contrast `print missing;` (`SEM_UNDECLARED`) with use after an exited block (`SEM_SCOPE_VIOLATION`). Inactive history classifies the latter but never resolves it.
+- Use `bool b = 5 + 3.2;` to explain local numeric promotion to `float`, exact initializer compatibility, and `SEM_TYPE_MISMATCH`.
+- Contrast invalid initializer, invalid standalone assignment, and invalid operator signatures so the audience sees why their stable codes differ.
+- Show the multiple-error golden: independent errors continue in source order, while an invalid expression suppresses only dependent type/assignment follow-ups.
+- Run `make test` and identify the M6 summary: header check, 15 AST tests, 30 symbol-table tests, 10 lexer cases, 32 parser cases, and 26 semantic cases.
+- State the boundary honestly: `semantic_test` is a test-only phase driver and semantic success currently produces no TAC.
 
 Indicative grading emphasis: semantics 20%; parser and TAC 15% each; lexer, AST, symbol table, documentation, and presentation 10% each. Do not omit lower-weight mandatory modules.
 
@@ -118,6 +129,8 @@ Resolved implementation challenge: the supported WSL2/Ubuntu toolchain was insta
 Resolved M4 challenge: once Flex began writing Bison's `yylval` and `yylloc`, even the lexer-only phase test needed the generated parser object at link time. The Makefile now shares that generated definition while keeping token numbers in one header. Recovery ownership was kept safe with explicit transfers and Bison destructors rather than a second AST representation.
 
 Resolved M5 design challenge: an exited declaration must stop resolving actively but remain available to distinguish scope violation from a never-declared name. Permanent scope frames with an active flag preserve that history, while parent links keep active lookup and shadow restoration direct and explainable.
+
+Resolved M6 design challenge: invalid expressions must not create misleading secondary assignment/initializer/condition diagnostics, yet independent later errors should still appear. A transient valid/type result carries failure upward only through dependent contexts while source-order statement traversal continues.
 
 Add implementation challenges only after they occur in `DEVELOPMENT_LOG.md`; do not invent conflicts or bugs for presentation value.
 

@@ -1,6 +1,6 @@
 # Development and Contribution Roadmap
 
-Status: M1-M4 are committed and pushed. M5 nested-scope symbol-table implementation and tests are complete, pending Shimul's review and approval; no M5 commit exists yet. Shimul remains the next intended contributor.
+Status: M1-M5 are committed and pushed. M6 full semantic validation is implemented and tested, pending Nayem's review and commit approval. Nayem remains the next intended contributor.
 
 The initialization documents were incorporated into Shimul's coherent M1 foundation milestone. This consumes Shimul's current turn and advances the intended contribution cycle to Nayem without changing the existing M2-M16 ownership sequence.
 
@@ -26,14 +26,14 @@ Shimul -> Nayem -> Dipro -> Mehedi -> repeat
 | M2 | 22 Jul | Nayem | After separately approved toolchain setup succeeds, establish the C/Make foundation, minimal automated test target, generated-file layout/ignore rules, and minimal Bison `%token` interface that produces the lexer's shared header. Implement the AST data model—including block statements and optional declaration-initializer children—source locations, cleanup, printer, and focused tests. | M1 approved/committed; environment gate passed |
 | M3 | 22 Jul | Dipro | Implement Flex rules for every required lexical element, comments, longest-match cases, line tracking, invalid-token diagnostics, `%option noyywrap`, and lexer tests against the generated token header. | M1-M2 token interface |
 | M4 | 23 Jul | Mehedi | Implement the Bison CFG with normal EOF, both declaration forms, standalone/empty blocks, structural precedence, AST-building actions, line-aware diagnostics, semicolon/brace recovery, lexical-error duplicate suppression, zero-conflict evidence, and parser tests. Completed, reviewed, committed, and pushed as `6d6fc30`. | M1-M3 |
-| M5 | 24 Jul | Shimul | Implement nested symbol-table scopes, insertion/current/active/history lookup, monotonic IDs, declaration-order retention, initializer-order support, shadowing/restoration, cleanup, printer golden, and direct unit tests. Implementation/tests complete; owner review and approved commit remain. | M2 |
-| M6 | 24 Jul | Nayem | Implement semantic declaration/use analysis: undeclared, out-of-scope, same-scope redeclaration, initializer-before-binding traversal, and source-line diagnostics with tests. | M4-M5 |
-| M7 | 25 Jul | Dipro | Implement semantic type inference/checking for initialized declarations, assignments, expressions/operators, conditions, and print; cover all required semantic errors and cascade rules. | M6 |
-| M8 | 26 Jul | Mehedi | Implement deterministic TAC for initialized declarations, literals, identifiers, arithmetic/relational/logical expressions, assignment, standalone blocks, and print with golden tests. | M4, M7 |
-| M9 | 26 Jul | Shimul | Implement TAC control flow for `if`, `if-else`, and `while` using labels and jumps; add nested-control-flow goldens. | M8 |
-| M10 | 27 Jul | Nayem | Integrate the CLI and full phase gates; make a non-trivial program pass source -> AST -> semantics -> TAC; define stable exit codes and output streams. | M3-M9 |
-| M11 | 28 Jul | Dipro | Expand the existing `make test` harness into comprehensive executable `.mc` coverage, `.txt`/source-path compatibility, expected output, ephemeral comparison results, and curated actual evidence for every required success/error category and operator family. | M10 |
-| M12 | 28 Jul | Mehedi | Harden lexer/parser recovery and semantic diagnostics, fix edge cases found by the full suite, and validate unseen-input behavior. | M11 |
+| M5 | 24 Jul | Shimul | Implement nested symbol-table scopes, insertion/current/active/history lookup, monotonic IDs, declaration-order retention, initializer-order support, shadowing/restoration, cleanup, printer golden, and direct unit tests. Completed, committed, and pushed as `1f319c6`. | M2 |
+| M6 | 24 Jul | Nayem | Implement the complete semantic pass: declaration/use analysis, one scope per block, inferred expression types, exact initializer/assignment compatibility, operator/condition validation, deterministic diagnostics, cascade policy, and focused parser-to-AST integration tests. Implementation/tests complete; owner review and approved commit remain. This user-approved scope absorbs the former M7 type-checking deliverable. | M4-M5 |
+| M7 | 25 Jul | Dipro | Implement deterministic TAC data structures plus generation for literals, identifiers, initialized declarations, arithmetic/relational/logical expressions, assignment, standalone blocks, and print with goldens. Do not add control-flow lowering yet. | M6 |
+| M8 | 26 Jul | Mehedi | Extend TAC with deterministic labels and jumps for `if`, `if-else`, and `while`; add nested-control-flow goldens. | M7 |
+| M9 | 26 Jul | Shimul | Integrate the CLI and full phase gates; make a non-trivial program pass source -> AST -> semantics -> TAC; define stable exit codes and output streams. | M3-M8 |
+| M10 | 27 Jul | Nayem | Expand executable end-to-end `.mc`/`.txt` fixtures, expected outputs, and source-path/phase-gate coverage for every required success/error category. | M9 |
+| M11 | 28 Jul | Dipro | Harden lexer/parser recovery, semantic/TAC diagnostics and output, fix edge cases found by the full suite, and validate unseen-input behavior. | M10 |
+| M12 | 28 Jul | Mehedi | Conduct cross-module integration review, fill missing test-matrix evidence, and validate clean source-to-TAC behavior before documentation freeze. | M11 |
 | M13 | 29 Jul | Shimul | Replace the template README with accurate project/team/build/run/test documentation; complete architecture and report technical sections with citations. | M10-M12 |
 | M14 | 29 Jul | Nayem | Prepare slides, diagrams, sample outputs, screenshots, and a reproducible live-demo sequence covering valid and all error phases. | M13 |
 | M15 | 30 Jul | Dipro | Conduct cross-module review and viva rehearsal; document important functions/data structures and resolve comprehensibility or code-quality findings. | M13-M14 |

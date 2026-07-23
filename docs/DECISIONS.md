@@ -1,6 +1,6 @@
 # Design Decisions
 
-Status: M1-M4 decisions are approved, committed, and pushed. M5 decisions below are implemented and validated, pending Shimul's review and approval.
+Status: M1-M5 decisions are approved, committed, and pushed. M6 decisions below are implemented and validated, pending Nayem's review and approval.
 
 The official Project Manual remains authoritative. Decisions below fill gaps only where an implementation cannot be consistent without choosing a boundary.
 
@@ -97,6 +97,18 @@ Exact conventions are in `docs/TEST_CONVENTIONS.md`.
 | D-506 | Return internal scope/insertion statuses rather than emitting `SEM_...` diagnostics. | M5 is a reusable data structure; M6 owns source-facing classification and messages. |
 | D-507 | Print scopes in creation order and declarations in insertion order, including scope ID/depth/active state plus symbol name/type/line. Empty scopes print `<empty>`. | The output is deterministic, readable, address-free, and suitable for golden tests and viva explanation without becoming compiler output. |
 | D-508 | Keep `Symbol` and `SymbolTable` opaque. Lookups return borrowed `const Symbol *`, and `symbol_get_info` returns a read-only view whose name remains table-owned. | Callers cannot mutate table records accidentally; one destroy operation frees active/inactive frames, symbols, and names exactly once. |
+
+## M6 semantic-analysis decisions
+
+| ID | Decision | Reason and consequence |
+| --- | --- | --- |
+| D-601 | Expose one `semantic_analyze(const AstNode *, FILE *, SemanticResult *)` operation. The caller retains the AST; each analysis owns and destroys a private symbol table and returns success, semantic-error, or internal-error status. | Keeps semantic state isolated per source file, preserves existing AST ownership, and provides a small interface for the later compiler driver. |
+| D-602 | Represent expression analysis internally as `{valid, ValueType}` rather than adding an error/unknown member to the source-language `ValueType`. | The fixed language still has exactly three types; an invalid child suppresses only dependent diagnostics while independent traversal continues. |
+| D-603 | Map invalid operator signatures to `SEM_INVALID_OPERATOR`, incompatible Boolean/numeric equality and non-Boolean conditions to `SEM_TYPE_MISMATCH`, and exact standalone storage failure to `SEM_INVALID_ASSIGNMENT`. | Implements the already approved non-overlapping taxonomy without inventing the prompt's illustrative `SEM_INVALID_EXPRESSION` or `SEM_INVALID_CONDITION` names. |
+| D-604 | Resolve identifiers through active lookup first and inactive history second. A historical record classifies the use but never becomes a usable binding. | Produces the manual-required distinction between `SEM_SCOPE_VIOLATION` and `SEM_UNDECLARED` while preserving lexical visibility. |
+| D-605 | Traverse both operands/branches and later statements after recoverable semantic errors, but do not issue a dependent type/assignment/context diagnostic when a required expression result is invalid. | Reports multiple independent source errors in deterministic order without misleading cascades. |
+| D-606 | Keep `tests/support/semantic_driver.c` test-only: it parses one supplied file, runs semantics only after parse success, emits no stdout, and returns status 3 when semantic diagnostics exist. | Enables exact M6 integration tests without pretending TAC or the final source-to-TAC CLI is implemented. |
+| D-607 | Consolidate the roadmap's former M6 declaration/use pass and M7 type-checking pass into this user-approved M6 milestone. Reassign M7 to the first TAC milestone without changing the contributor cycle. | The requested M6 explicitly requires the complete semantic contract; maintaining a second empty/duplicate semantic milestone would be misleading. |
 
 ## Resolved ambiguity register
 
